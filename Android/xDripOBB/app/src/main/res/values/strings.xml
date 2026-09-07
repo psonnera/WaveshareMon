@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">xDrip OBB</string>
+    <string name="title_device_setup">WaveshareMon setup</string>
+    <string name="notif_channel">OBB broadcast</string>
+    <string name="notif_title">xDrip OBB broadcast running</string>
+    <string-array name="trend_names">
+        <item>Unknown</item>
+        <item>Double up ⇈</item>
+        <item>Single up ↑</item>
+        <item>Forty-five up ↗</item>
+        <item>Flat →</item>
+        <item>Forty-five down ↘</item>
+        <item>Single down ↓</item>
+        <item>Double down ⇊</item>
+        <item>Out of range</item>
+    </string-array>
+    <string-array name="alarm_names">
+        <item>All clear</item>
+        <item>Urgent low</item>
+        <item>Low</item>
+        <item>High</item>
+        <item>Urgent high</item>
+        <item>Missed readings</item>
+        <item>Sensor problem</item>
+        <item>Phone battery low</item>
+    </string-array>
+</resources>
