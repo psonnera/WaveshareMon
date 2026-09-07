@@ -59,6 +59,7 @@ void AppConfig::load() {
     p.getString("nsurl", nsUrl, sizeof(nsUrl));
     p.getString("nstok", nsToken, sizeof(nsToken));
     obbStatusLine  = p.getUChar("sline", obbStatusLine);
+    bleSecureConn  = p.getUChar("blesc", bleSecureConn);
     p.getString("name", deviceName, sizeof(deviceName));
   }
   p.end();
@@ -96,6 +97,7 @@ void AppConfig::save() {
   chk(p.putUChar("dbg", debugLog));
   chk(p.putInt("tzof", tzOffsetSec));
   chk(p.putUChar("sline", obbStatusLine));
+  chk(p.putUChar("blesc", bleSecureConn));
   putStr(p, "tzstr", tzString);
   putStr(p, "ssid", wifiSsid);
   putStr(p, "pass", wifiPass);

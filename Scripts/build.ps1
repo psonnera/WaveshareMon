@@ -40,7 +40,13 @@ param(
     [switch]$Release,
     [string]$ArduinoCli,
     [string]$Port,
-    [switch]$Clean
+    [switch]$Clean,
+    # Compile with core debug level "info" (NimBLE + Wi-Fi diagnostics on the serial console)
+    [switch]$DebugBuild,
+    # Core debug level for the build: none|error|warn|info|debug|verbose (-DebugBuild = info)
+    [string]$DebugLevel,
+    # Extra compiler flags, e.g. -ExtraFlags "-DCONFIG_BT_NIMBLE_LOG_LEVEL=0" for NimBLE host traces
+    [string]$ExtraFlags
 )
 
 $ErrorActionPreference = 'Stop'
@@ -77,6 +83,7 @@ if (-not $env:ARDUINO_DIRECTORIES_USER) { $env:ARDUINO_DIRECTORIES_USER = Join-P
 
 # --- Target -------------------------------------------------------------------
 $Fqbn   = 'esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc,FlashMode=qio,FlashSize=8M,PartitionScheme=default_8MB,PSRAM=opi,UploadSpeed=921600'
+if ($DebugLevel) { $Fqbn += ",DebugLevel=$DebugLevel" } elseif ($DebugBuild) { $Fqbn += ',DebugLevel=info' }
 $Folder = 'WS_ePaper154G'
 
 $vendorDir = Join-Path $env:ARDUINO_DIRECTORIES_DATA 'packages\esp32'
@@ -116,7 +123,9 @@ New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 if ($Clean -and (Test-Path $buildPath)) { Remove-Item -Recurse -Force $buildPath }
 New-Item -ItemType Directory -Force -Path $buildPath | Out-Null
 
-& $ArduinoCli compile --fqbn $Fqbn --build-path $buildPath --output-dir $outDir --warnings default $Sketch
+$cliArgs = @('compile', '--fqbn', $Fqbn, '--build-path', $buildPath, '--output-dir', $outDir, '--warnings', 'default')
+if ($ExtraFlags) { $cliArgs += @('--build-property', "compiler.cpp.extra_flags=$ExtraFlags", '--build-property', "compiler.c.extra_flags=$ExtraFlags") }
+& $ArduinoCli @cliArgs $Sketch
 if ($LASTEXITCODE -ne 0) { throw "Build FAILED (arduino-cli exit $LASTEXITCODE)." }
 
 Get-ChildItem $outDir -Include *.elf, *.map -File -Recurse | Remove-Item -Force
@@ -129,19 +138,33 @@ if ($NewBuild) {
 }
 
 # --- Optional upload ----------------------------------------------------------
+# The ESP32-S3 native USB (USB-Serial-JTAG) re-enumerates when esptool resets the
+# chip into the bootloader; the esptool 4.x bundled with the core loses the port on
+# Windows, so the pip-installed esptool (5.x, `python -m esptool`) is preferred.
 if ($Port) {
-    $esptool = Get-ChildItem (Join-Path $env:ARDUINO_DIRECTORIES_DATA 'packages\esp32\tools\esptool_py') -Recurse -Filter esptool.exe |
-               Sort-Object FullName -Descending | Select-Object -First 1
-    if (-not $esptool) { throw 'esptool.exe not found in the esp32 core tools.' }
-    $bootApp0 = Get-ChildItem (Join-Path $env:ARDUINO_DIRECTORIES_DATA 'packages\esp32\hardware\esp32') -Recurse -Filter boot_app0.bin | Select-Object -First 1
+    $bootApp0 = Join-Path $outDir 'boot_app0.bin'
+    if (-not (Test-Path $bootApp0)) {
+        $src = Get-ChildItem (Join-Path $env:ARDUINO_DIRECTORIES_DATA 'packages\esp32\hardware\esp32') -Recurse -Filter boot_app0.bin | Select-Object -First 1
+        if ($src) { Copy-Item $src.FullName $bootApp0 }
+    }
+    $parts = @('0x0', (Join-Path $outDir "$SketchName.ino.bootloader.bin"),
+               '0x8000', (Join-Path $outDir "$SketchName.ino.partitions.bin"),
+               '0xe000', $bootApp0,
+               '0x10000', (Join-Path $outDir "$SketchName.ino.bin"))
     Write-Host ("=== Flashing to {0} ===" -f $Port) -ForegroundColor Green
-    & $esptool.FullName --chip esp32s3 --port $Port --baud 921600 --before default_reset --after hard_reset write_flash -z `
-        --flash_mode dio --flash_freq 80m --flash_size 8MB `
-        0x0     (Join-Path $outDir "$SketchName.ino.bootloader.bin") `
-        0x8000  (Join-Path $outDir "$SketchName.ino.partitions.bin") `
-        0xe000  $bootApp0.FullName `
-        0x10000 (Join-Path $outDir "$SketchName.ino.bin")
-    if ($LASTEXITCODE -ne 0) { throw "Flash FAILED (esptool exit $LASTEXITCODE). Hold BOOT while plugging in the board and retry." }
+    $pyEsptool = $false
+    try { & python -m esptool version *> $null; $pyEsptool = ($LASTEXITCODE -eq 0) } catch {}
+    if ($pyEsptool) {
+        & python -m esptool --chip esp32s3 --port $Port --baud 921600 --before usb-reset --after hard-reset write-flash -z `
+            --flash-mode dio --flash-freq 80m --flash-size 8MB @parts
+    } else {
+        $esptool = Get-ChildItem (Join-Path $env:ARDUINO_DIRECTORIES_DATA 'packages\esp32	ools\esptool_py') -Recurse -Filter esptool.exe |
+                   Sort-Object FullName -Descending | Select-Object -First 1
+        if (-not $esptool) { throw 'esptool not found (pip install esptool, or the esp32 core tools).' }
+        & $esptool.FullName --chip esp32s3 --port $Port --baud 921600 --before default_reset --after hard_reset write_flash -z `
+            --flash_mode dio --flash_freq 80m --flash_size 8MB @parts
+    }
+    if ($LASTEXITCODE -ne 0) { throw "Flash FAILED (esptool exit $LASTEXITCODE). Type 'dfu' on the serial console or hold BOOT while plugging in the board, then retry." }
 }
 
 Write-Host ''

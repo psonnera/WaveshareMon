@@ -19,6 +19,7 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <nvs_flash.h>
+#include <soc/rtc_cntl_reg.h>
 
 static void printCfg() {
   Serial.printf("[cfg] name=%s src=%u units=%u ssid=%s pass=%s url=%s token=%s tz=%s/%ld\n",
@@ -58,6 +59,7 @@ static bool setKey(const char *key, const char *val) {
   else if (!strcmp(key, "dmy"))   cfg.dateFormatDMY = n ? 1 : 0;
   else if (!strcmp(key, "sline")) cfg.obbStatusLine = n ? 1 : 0;
   else if (!strcmp(key, "dbg"))   cfg.debugLog = n ? 1 : 0;
+  else if (!strcmp(key, "sc"))    cfg.bleSecureConn = n ? 1 : 0;   // takes effect after reboot
   else return false;
   cfg.save();
   return true;
@@ -134,6 +136,12 @@ void debugInjectPoll() {
       nsRequestNow();
     } else if (strcmp(line, "reboot") == 0) {
       ESP.restart();
+    } else if (strcmp(line, "dfu") == 0) {
+      // reboot into the ROM download mode (no BOOT button needed for esptool)
+      Serial.println("[dbg] entering download mode");
+      delay(100);
+      REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
+      esp_restart();
     } else if (strcmp(line, "factory") == 0) {
       cfg.factoryReset();
       NimBLEDevice::deleteAllBonds();
@@ -142,7 +150,7 @@ void debugInjectPoll() {
     } else if (strcmp(line, "log") == 0) {
       for (int i = 0; logGet(i); i++) Serial.printf("  %s\n", logGet(i)->text);
     } else if (line[0]) {
-      Serial.println("[dbg] commands: bg demo time status cfg set setup refresh warn alarm snooze ns log reboot factory");
+      Serial.println("[dbg] commands: bg demo time status cfg set setup refresh warn alarm snooze ns log reboot dfu factory");
     }
   }
 }

@@ -142,17 +142,27 @@ static bool connectAndSubscribe() {
   if (!s_client) {
     s_client = NimBLEDevice::createClient();
     s_client->setClientCallbacks(&s_clientCb, false);
-    s_client->setConnectionParams(24, 40, 4, 400);   // relaxed: data every 5 min
+    // default connection parameters during pairing; relaxed ones are requested
+    // once the link is encrypted (see below)
     s_client->setConnectTimeout(10000);
   }
-  if (!s_client->connect(s_target, true)) {
-    logAdd("connect failed");
+  // The ESP32-S3 controller refuses to initiate a connection while it is
+  // advertising (LE Create Connection fails with BLE_ERR_MEM_CAPACITY, rc 519),
+  // so the setup advertising is paused for the duration of the attempt.
+  bool wasAdvertising = NimBLEDevice::getAdvertising()->isAdvertising();
+  if (wasAdvertising) NimBLEDevice::stopAdvertising();
+  bool connected = s_client->connect(s_target, true);
+  if (wasAdvertising) NimBLEDevice::startAdvertising();
+  if (!connected) {
+    // typical cause: xDrip drops unbonded links while its pairing window is closed
+    logAdd("connect failed (rc %d) - pairing mode open?", s_client->getLastError());
+    s_nextActionMs = millis() + PAIR_FAIL_MS;
     return false;
   }
   // encrypted link is mandatory; first contact bonds (Just Works) while the
-  // user has the pairing window open in xDrip
-  if (!s_client->secureConnection()) {
-    logAdd("pairing refused - open pairing mode in xDrip");
+  // user has the pairing window open in xDrip and accepts the phone's dialog
+  if (!s_client->isConnected() || !s_client->secureConnection()) {
+    logAdd("pairing failed (rc %d) - pairing mode + accept on phone", s_client->getLastError());
     s_client->disconnect();
     // a stale bond (phone forgot us) would make every later attempt fail:
     // drop it so the next connection pairs afresh
@@ -189,6 +199,8 @@ static bool connectAndSubscribe() {
       if (v.length()) gs.setInfoLine(v.c_str());
     }
   }
+  // data arrives every ~5 min: relax the link now that it is encrypted
+  s_client->updateConnParams(24, 40, 4, 400);
   s_lastPacketMs = millis();
   s_connectedMs = millis();
   s_disconnected = false;

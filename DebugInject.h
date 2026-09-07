@@ -12,6 +12,7 @@
 //   refresh             force a display refresh
 //   warn / alarm        play the test sounds
 //   reboot / factory
+//   dfu                 reboot into ROM download mode (then flash with esptool)
 void debugInjectPoll();
 
 #endif

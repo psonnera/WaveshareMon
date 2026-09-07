@@ -34,6 +34,7 @@
 #include "Log.h"
 #include <Wire.h>
 #include <NimBLEDevice.h>
+#include <esp_log.h>
 
 // setup advertising stays on this long after boot (or a long press)
 #define SETUP_WINDOW_MS   (10UL * 60 * 1000)
@@ -69,6 +70,9 @@ static void pollButton() {
 void setup() {
   Serial.begin(115200);
   delay(200);
+#if CORE_DEBUG_LEVEL >= 4
+  esp_log_level_set("*", ESP_LOG_DEBUG);          // NimBLE host / Wi-Fi traces (debug builds only)
+#endif
   pinMode(PIN_BOOT_BTN, INPUT_PULLUP);
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000);
 
@@ -85,7 +89,7 @@ void setup() {
   NimBLEDevice::init(cfg.name());
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
   // Just Works bonding with an encrypted link, as required by the OBB spec
-  NimBLEDevice::setSecurityAuth(true /*bond*/, false /*mitm*/, true /*secure conn*/);
+  NimBLEDevice::setSecurityAuth(true /*bond*/, false /*mitm*/, cfg.bleSecureConn != 0 /*secure conn*/);
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
   NimBLEDevice::setMTU(517);
 

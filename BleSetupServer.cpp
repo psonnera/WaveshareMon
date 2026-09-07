@@ -196,17 +196,22 @@ void setupServerBegin() {
   s_log->setCallbacks(&s_logCb);
   svc->start();
 
+  // 128-bit service UUID in the advertisement, name in the scan response
+  // (both do not fit in the 31-byte advertising packet)
   NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
-  adv->setName(cfg.name());
-  adv->addServiceUUID(UUID_SVC);
-  adv->enableScanResponse(true);
+  NimBLEAdvertisementData advData;
+  advData.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+  advData.addServiceUUID(UUID_SVC);
+  NimBLEAdvertisementData scanData;
+  scanData.setName(cfg.name());
+  adv->setAdvertisementData(advData);
+  adv->setScanResponseData(scanData);
 }
 
 void setupServerAdvertise(bool on) {
   if (on == s_advertising) return;
   s_advertising = on;
   if (on) {
-    NimBLEDevice::getAdvertising()->setName(cfg.name());
     NimBLEDevice::startAdvertising();
     logAdd("setup mode: %s", cfg.name());
   } else {
@@ -220,6 +225,15 @@ bool setupServerAdvertising() { return s_advertising; }
 bool setupServerClientConnected() { return s_clients > 0; }
 
 void setupServerTick() {
+  // the controller refuses to (re)start advertising while a central connection
+  // is being established (rc 519): keep retrying while setup mode is wanted
+  static uint32_t lastAdvRetryMs = 0;
+  if (s_advertising && s_clients == 0 && !NimBLEDevice::getAdvertising()->isAdvertising() &&
+      millis() - lastAdvRetryMs > 3000) {
+    lastAdvRetryMs = millis();
+    NimBLEDevice::startAdvertising();
+  }
+
   // push new log lines to a subscribed app (oldest first)
   if (s_logSubscribed && s_log) {
     uint32_t total = logTotal();                 // entries ever logged

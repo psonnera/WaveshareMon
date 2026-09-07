@@ -24,7 +24,7 @@ void logAdd(const char *fmt, ...) {
   total++;
   logDirty = true;
 
-  Serial.print("[log] ");
+  Serial.printf("[%6lu] ", (unsigned long)e.ms);
   Serial.println(e.text);
 }
 

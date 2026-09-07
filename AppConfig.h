@@ -52,6 +52,7 @@ struct AppConfig {
   char     nsToken[64]     = "";
   // OBB options
   uint8_t  obbStatusLine   = 0;    // subscribe to the optional status line
+  uint8_t  bleSecureConn   = 1;    // LE Secure Connections for bonding (0 = legacy pairing), debug aid
   // custom name (empty = WaveshareMon-XXXX from the MAC)
   char     deviceName[25]  = "";
 
