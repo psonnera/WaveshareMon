@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WaveshareMon Web Flasher</title>
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --text:#1a1d21; --muted:#5c6570; --accent:#0b7a3e; --accent-text:#fff;
+          --border:#d9dde2; --warn-bg:#fff4e0; --warn-border:#e0a94a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --card:#1e2126; --text:#e6e8ea; --muted:#9aa3ad; --accent:#1fa35c;
+            --border:#33383f; --warn-bg:#3a2f18; --warn-border:#a37c33; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+  main { max-width:720px; margin:0 auto; padding:2rem 1rem 4rem; }
+  h1 { font-size:1.6rem; margin:0 0 .25rem; }
+  .subtitle { color:var(--muted); margin:0 0 1.5rem; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1rem 1.25rem; margin-bottom:1rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .card-info { flex:1 1 320px; }
+  .card h2 { font-size:1.05rem; margin:0 0 .15rem; }
+  .card p { margin:0; color:var(--muted); font-size:.9rem; }
+  .version { font-size:.8rem; color:var(--muted); margin-top:.3rem; }
+  .version b { color:var(--text); font-weight:600; }
+  esp-web-install-button button { background:var(--accent); color:var(--accent-text); border:none; border-radius:8px; padding:.6rem 1.3rem; font-size:.95rem; font-weight:600; cursor:pointer; }
+  esp-web-install-button button:hover { filter:brightness(1.1); }
+  .notice { background:var(--warn-bg); border:1px solid var(--warn-border); border-radius:10px; padding:.8rem 1.1rem; margin:0 0 1.5rem; font-size:.92rem; }
+  .notes { font-size:.9rem; color:var(--muted); margin-top:2rem; }
+  .notes h3 { color:var(--text); font-size:1rem; margin-bottom:.4rem; }
+  .notes ul { padding-left:1.2rem; margin:.3rem 0 1rem; }
+  .notes li { margin-bottom:.35rem; }
+  a { color:var(--accent); }
+  #unsupported { display:none; }
+  footer { margin-top:2.5rem; font-size:.85rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>WaveshareMon Web Flasher</h1>
+  <p class="subtitle">Flash the glucose monitor firmware for the Waveshare ESP32-S3-ePaper-1.54G straight from your browser.</p>
+
+  <div class="notice" id="unsupported">
+    <b>This browser can't flash devices.</b> Web Serial is required — use Google Chrome or
+    Microsoft Edge on a desktop computer (Windows, macOS or Linux). Firefox and Safari are not
+    supported, and neither are phones or tablets.
+  </div>
+
+  <div class="card">
+    <div class="card-info">
+      <h2>Waveshare ESP32-S3-ePaper-1.54G</h2>
+      <p>1.54&Prime; four-colour e-paper board (ESP32-S3, 8&nbsp;MB flash, 8&nbsp;MB PSRAM, native USB).</p>
+      <div class="version" data-group="WS_ePaper154G">Version: <b>…</b></div>
+    </div>
+    <esp-web-install-button manifest="manifest-ws_epaper154g.json" data-group="WS_ePaper154G">
+      <button slot="activate">Install</button>
+    </esp-web-install-button>
+  </div>
+
+  <div class="notes">
+    <h3>Before you start</h3>
+    <ul>
+      <li>Works in <b>Chrome or Edge on any desktop OS</b>. Use a USB <b>data</b> cable.</li>
+      <li>The board uses the ESP32-S3 native USB: no driver is needed. If no serial port shows
+          up, hold the <b>BOOT</b> button while plugging in the cable (download mode), then try again.</li>
+      <li>Choosing <b>Erase device</b> wipes saved settings and Bluetooth bonds — recommended for a
+          first install, not needed for re-flashing.</li>
+    </ul>
+    <h3>After flashing</h3>
+    <ul>
+      <li>The device advertises as <b>WaveshareMon-XXXX</b> for 10 minutes after every start (and
+          permanently until it has been configured). Open the <b>xDrip OBB</b> Android app →
+          <b>Device setup</b> to choose the data source (xDrip over Bluetooth or Nightscout over Wi-Fi)
+          and enter your settings.</li>
+      <li>For xDrip: turn on the OBB server in the app (or in xDrip once integrated), open the
+          <b>pairing window</b>, and the device connects and bonds by itself.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <a href="https://github.com/psonnera/WaveshareMon">WaveshareMon</a> — free software under the
+    <a href="https://github.com/psonnera/WaveshareMon/blob/main/LICENSE">GNU GPL v3</a>.
+    Flashing is powered by <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a> (Apache&nbsp;2.0).
+  </footer>
+</main>
+
+<script>
+  if (!navigator.serial) {
+    document.getElementById('unsupported').style.display = 'block';
+    document.querySelectorAll('esp-web-install-button button').forEach(b => b.disabled = true);
+  }
+  // Show the current build number (update.inf) and patch it into the manifest.
+  document.querySelectorAll('esp-web-install-button[data-group]').forEach(async (btn) => {
+    const group = btn.dataset.group;
+    const versionEl = document.querySelector(`.version[data-group="${group}"] b`);
+    const manifestUrl = new URL(btn.getAttribute('manifest'), location.href);
+    try {
+      const [infRes, manRes] = await Promise.all([fetch(`../Binaries/${group}/update.inf`), fetch(manifestUrl)]);
+      const version = (await infRes.text()).trim();
+      const manifest = await manRes.json();
+      if (versionEl && version) versionEl.textContent = 'v' + version;
+      manifest.version = version || manifest.version;
+      for (const build of manifest.builds)
+        for (const part of build.parts) part.path = new URL(part.path, manifestUrl).href;
+      btn.setAttribute('manifest', URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/json' })));
+    } catch (e) {
+      if (versionEl) versionEl.textContent = 'unknown';
+    }
+  });
+</script>
+</body>
+</html>
