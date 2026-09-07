@@ -72,23 +72,26 @@
             android:orientation="horizontal">
             <Button
                 android:id="@+id/btnReadInfo"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:text="Read info"
+                android:text="Info"
                 style="@style/Widget.Material3.Button.OutlinedButton" />
             <Button
                 android:id="@+id/btnReadConfig"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Read config"
+                android:layout_marginStart="6dp"
+                android:text="Read"
                 style="@style/Widget.Material3.Button.OutlinedButton" />
             <Button
                 android:id="@+id/btnWriteConfig"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Write config" />
+                android:layout_marginStart="6dp"
+                android:text="Write" />
         </LinearLayout>
 
         <TextView

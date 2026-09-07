@@ -40,10 +40,13 @@ repository is published with GitHub Pages, or open `Flasher/index.html` from a l
 The board uses the ESP32-S3 native USB (no driver). If no port appears, hold **BOOT** while
 plugging in the cable.
 
-Manual flashing with esptool (offsets for the ESP32-S3):
+Manual flashing with esptool (offsets for the ESP32-S3). Use esptool 5.x (`pip install esptool`)
+with `--before usb-reset`: the esptool 4.x bundled with the Arduino core loses the port when the
+native USB re-enumerates. A running firmware also accepts the serial command `dfu` to reboot into
+the ROM download mode.
 
 ```
-esptool --chip esp32s3 --port COM4 --baud 921600 write_flash -z --flash_mode dio --flash_freq 80m --flash_size 8MB ^
+python -m esptool --chip esp32s3 --port COM4 --baud 921600 --before usb-reset write-flash -z --flash-mode dio --flash-freq 80m --flash-size 8MB ^
   0x0     Binaries\WS_ePaper154G\WaveshareMon.ino.bootloader.bin ^
   0x8000  Binaries\WS_ePaper154G\WaveshareMon.ino.partitions.bin ^
   0xe000  Binaries\WS_ePaper154G\boot_app0.bin ^
@@ -63,6 +66,17 @@ esptool --chip esp32s3 --port COM4 --baud 921600 write_flash -z --flash_mode dio
    Writing the config requires the phone to bond with the device (accept the pairing dialog).
 3. For xDrip: turn the OBB server on in the app (later: in xDrip), press **Pairing mode** and wait
    for the device to connect. The bond is stored on both sides; reconnection is automatic.
+
+## Pairing notes (from the first hardware tests)
+
+- The board initiates the bond. Android shows a **"Pairing request" notification**; open it and
+  confirm **Pair** within 30 s (both sides time out after 30 s). The consent must be given while
+  the app's pairing window is open, otherwise the app drops the link.
+- The ESP32-S3 controller cannot start a connection while it is advertising; the firmware pauses
+  the setup advertising for the duration of the connection attempt.
+- Pairing was verified against a Windows PC (bleak) and fails on one MediaTek Android 11 phone
+  (Unihertz Jelly2), whose Bluetooth stack never sends its DHKey Check / Confirm in any role.
+  Other phones should be tested before treating this as a firmware problem.
 
 ## Serial console
 
