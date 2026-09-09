@@ -35,15 +35,19 @@
 #include <Wire.h>
 #include <NimBLEDevice.h>
 #include <esp_log.h>
+#include <esp_task_wdt.h>
+#include <esp_sleep.h>
 
 // setup advertising stays on this long after boot (or a long press)
 #define SETUP_WINDOW_MS   (10UL * 60 * 1000)
 #define LONG_PRESS_MS     3000
+#define PWR_OFF_MS        2000                 // hold PWR this long to power off
+#define WDT_TIMEOUT_S     60                   // reboot if loop() stalls this long
 
 static uint32_t setupStartMs = 0;
 static bool     setupTimed = false;
 
-static void enterSetupMode(bool timed) {
+void enterSetupMode(bool timed) {   // also used by the serial "setup" command
   setupStartMs = millis();
   setupTimed = timed;
   setupServerAdvertise(true);
@@ -67,6 +71,33 @@ static void pollButton() {
   wasDown = down;
 }
 
+// Power off: the e-paper keeps its image, so the screen does not change. Deep
+// sleep drops the CPU to a few uA (battery lasts months) and, more usefully,
+// releases the USB, so this is the "off" state. A PWR press wakes it: on
+// battery the hardware power path re-latches and it boots; on USB it wakes
+// through the ext0 source below. Nothing here forces the battery latch low, so
+// a wrong guess about that circuit cannot brick the device.
+void powerOff() {
+  logAdd("power off (PWR to wake)");
+  Serial.println("[dbg] powering off - press PWR to wake");
+  Serial.flush();
+  delay(50);
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_PWR_BTN, 0);   // wake when PWR pulled low
+  esp_deep_sleep_start();
+}
+
+// Hold PWR ~2 s to power off. A short press does nothing (avoids accidents).
+static void pollPwrButton() {
+  static bool     wasDown = false;
+  static uint32_t downMs = 0;
+  static bool     done = false;
+  bool down = digitalRead(PIN_PWR_BTN) == LOW;
+  uint32_t now = millis();
+  if (down && !wasDown) { downMs = now; done = false; }
+  if (down && !done && now - downMs >= PWR_OFF_MS) { done = true; powerOff(); }
+  wasDown = down;
+}
+
 void setup() {
   Serial.begin(115200);
   delay(200);
@@ -74,7 +105,14 @@ void setup() {
   esp_log_level_set("*", ESP_LOG_DEBUG);          // NimBLE host / Wi-Fi traces (debug builds only)
 #endif
   pinMode(PIN_BOOT_BTN, INPUT_PULLUP);
+  pinMode(PIN_PWR_BTN, INPUT_PULLUP);
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000);
+
+  // Reboot the board if the main loop ever stalls for WDT_TIMEOUT_S, so a hung
+  // firmware recovers on its own instead of needing the battery pulled. The
+  // e-paper refresh blocks the loop for ~20 s, well under the timeout.
+  esp_task_wdt_init(WDT_TIMEOUT_S, true /* reset on timeout */);
+  esp_task_wdt_add(NULL);
 
   cfg.load();
   battery.begin();
@@ -102,7 +140,9 @@ void setup() {
 }
 
 void loop() {
+  esp_task_wdt_reset();
   pollButton();
+  pollPwrButton();
   debugInjectPoll();
 
   // one phone cannot hold a setup link and an OBB link at the same time

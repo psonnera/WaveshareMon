@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">xDrip OBB</string>
-    <string name="title_device_setup">WaveshareMon setup</string>
-    <string name="notif_channel">OBB broadcast</string>
-    <string name="notif_title">xDrip OBB broadcast running</string>
+    <string name="app_name">WaveShareMon</string>
+    <string name="title_device_setup">WaveShareMon setup</string>
+    <string name="notif_channel">WaveShareMon broadcast</string>
+    <string name="notif_title">WaveShareMon broadcast running</string>
     <string-array name="trend_names">
         <item>Unknown</item>
         <item>Double up ⇈</item>

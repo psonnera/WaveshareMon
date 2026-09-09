@@ -5,6 +5,9 @@
   Copyright (C) 2026 Patrick Sonnerat
 */
 #include "DebugInject.h"
+#include "Board.h"
+void enterSetupMode(bool timed);   // WaveshareMon.ino
+void powerOff();                   // WaveshareMon.ino
 #include "GlucoseState.h"
 #include "TimeService.h"
 #include "AppConfig.h"
@@ -109,6 +112,10 @@ void debugInjectPoll() {
                     obbStateName(), wifiStateName(), wifiIp(), nsLastError(),
                     setupServerAdvertising(), battery.percent(), battery.millivolts(),
                     alarms.label(), (unsigned)ESP.getFreeHeap());
+      int nb = NimBLEDevice::getNumBonds();
+      Serial.printf("[dbg] bonds=%d", nb);
+      for (int i = 0; i < nb; i++) { NimBLEAddress b = NimBLEDevice::getBondedAddress(i); Serial.printf(" %s/t%d", b.toString().c_str(), b.getType()); }
+      Serial.println();
     } else if (strcmp(line, "cfg") == 0) {
       printCfg();
     } else if (strncmp(line, "set ", 4) == 0) {
@@ -123,7 +130,7 @@ void debugInjectPoll() {
       } else Serial.printf("[dbg] unknown key %s\n", key);
     } else if (strncmp(line, "setup", 5) == 0) {
       bool on = strstr(line, "off") == nullptr;
-      setupServerAdvertise(on);
+      if (on) enterSetupMode(true); else setupServerAdvertise(false);
     } else if (strcmp(line, "refresh") == 0) {
       ui.requestRedraw();
     } else if (strcmp(line, "warn") == 0) {
@@ -134,6 +141,22 @@ void debugInjectPoll() {
       alarms.snooze();
     } else if (strcmp(line, "ns") == 0) {
       nsRequestNow();
+    } else if (strcmp(line, "btn") == 0) {
+      // watch both physical buttons for 20 s and log every edge, to map the
+      // labels (PWR / BOOT) to GPIOs and find their idle / pressed levels
+      pinMode(PIN_PWR_BTN, INPUT_PULLUP);
+      int b = digitalRead(PIN_BOOT_BTN), p = digitalRead(PIN_PWR_BTN);
+      Serial.printf("[dbg] btn watch 20s - press each button. idle BOOT(gpio0)=%d PWR(gpio18)=%d\n", b, p);
+      uint32_t end = millis() + 20000;
+      while (millis() < end) {
+        int nb = digitalRead(PIN_BOOT_BTN), np = digitalRead(PIN_PWR_BTN);
+        if (nb != b) { Serial.printf("[dbg] BOOT %d->%d @%lums\n", b, nb, (unsigned long)millis()); b = nb; }
+        if (np != p) { Serial.printf("[dbg] PWR  %d->%d @%lums\n", p, np, (unsigned long)millis()); p = np; }
+        delay(5);
+      }
+      Serial.println("[dbg] btn watch done");
+    } else if (strcmp(line, "poweroff") == 0) {
+      powerOff();          // deep sleep; same as holding PWR (drops USB)
     } else if (strcmp(line, "reboot") == 0) {
       ESP.restart();
     } else if (strcmp(line, "dfu") == 0) {
@@ -150,7 +173,7 @@ void debugInjectPoll() {
     } else if (strcmp(line, "log") == 0) {
       for (int i = 0; logGet(i); i++) Serial.printf("  %s\n", logGet(i)->text);
     } else if (line[0]) {
-      Serial.println("[dbg] commands: bg demo time status cfg set setup refresh warn alarm snooze ns log reboot dfu factory");
+      Serial.println("[dbg] commands: bg demo time status cfg set setup refresh warn alarm snooze ns log btn poweroff reboot dfu factory");
     }
   }
 }

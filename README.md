@@ -15,7 +15,10 @@ delta, reading age, a 4-hour graph and alarms. It accepts two data sources:
 | **Nightscout** | Wi-Fi | Polls `/api/v1/entries.json` every 5 minutes (aligned to the readings) and `/api/v2/properties` for IOB/COB. |
 
 The board has no navigation buttons, so all settings are entered from the Android app over BLE.
-The **BOOT** button snoozes an active alarm (short press) or toggles setup mode (hold 3 s).
+The **BOOT** button snoozes an active alarm (short press) or toggles setup mode (hold 3 s); the
+**PWR** button powers the board off when held 2 s (deep sleep; press PWR to wake). A hardware
+watchdog reboots the firmware automatically if the main loop stalls for a minute, so a hang
+recovers without pulling the battery.
 
 ## Display
 
@@ -70,19 +73,25 @@ python -m esptool --chip esp32s3 --port COM4 --baud 921600 --before usb-reset wr
 ## Pairing notes (from the first hardware tests)
 
 - The board initiates the bond. Android shows a **"Pairing request" notification**; open it and
-  confirm **Pair** within 30 s (both sides time out after 30 s). The consent must be given while
-  the app's pairing window is open, otherwise the app drops the link.
+  confirm **Pair**. On Android 11 the phone then asks a **second time**: a new "Pairing request"
+  notification appears right after the first Pair, and the bond only completes once that one is
+  confirmed too (the first dialog is Android's consent to the incoming request, the second is the
+  actual pairing confirmation). Both must be confirmed within 30 s of the board connecting, while
+  the app's pairing window is open, otherwise both sides time out and the app drops the link.
 - The ESP32-S3 controller cannot start a connection while it is advertising; the firmware pauses
   the setup advertising for the duration of the connection attempt.
-- Pairing was verified against a Windows PC (bleak) and fails on one MediaTek Android 11 phone
-  (Unihertz Jelly2), whose Bluetooth stack never sends its DHKey Check / Confirm in any role.
-  Other phones should be tested before treating this as a firmware problem.
+- Bonding and glucose delivery were verified with a Cubot Pocket (Unisoc, Android 11) and a
+  Windows PC (bleak). An earlier failure on a Unihertz Jelly2 (MediaTek, Android 11), where the
+  phone never sent its DHKey Check / Confirm, is most likely the missed second dialog above and
+  should be retested.
 
 ## Serial console
 
-115200 baud on the USB port. Commands: `status`, `cfg`, `set <key> <value>` (same keys as the
-BLE config JSON), `bg <mgdl> [angle]`, `demo`, `time <h> <m>`, `setup on|off`, `refresh`,
-`warn`, `alarm`, `snooze`, `ns`, `log`, `reboot`, `factory`.
+115200 baud on the USB port. Commands: `status` (adds a `bonds=` line listing stored bonds),
+`cfg`, `set <key> <value>` (same keys as the BLE config JSON), `bg <mgdl> [angle]`, `demo`,
+`time <h> <m>`, `setup on|off`, `refresh`, `warn`, `alarm`, `snooze`, `ns`, `log`,
+`btn` (watch both buttons for 20 s), `poweroff` (deep sleep, same as holding PWR), `reboot`,
+`dfu`, `factory`.
 
 ## BLE setup service
 

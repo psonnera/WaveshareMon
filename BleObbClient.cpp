@@ -58,10 +58,12 @@ static volatile bool  s_disconnected = false;
 static uint32_t       s_nextActionMs = 0;
 static uint32_t       s_lastPacketMs = 0;
 static uint32_t       s_connectedMs = 0;
+static uint8_t        s_secureFails = 0;       // consecutive secureConnection() failures on a bonded link
 
 #define SUPERVISION_MS   (16UL * 60 * 1000)   // no packet for 16 min: reconnect
 #define RETRY_MS         (5UL * 1000)
 #define PAIR_FAIL_MS     (30UL * 1000)
+#define SECURE_FAIL_LIMIT 4                    // drop a bond only after this many straight failures
 
 static void setState(ObbState s) {
   if (s_state == s) return;
@@ -74,7 +76,17 @@ static void setState(ObbState s) {
 class ScanCb : public NimBLEScanCallbacks {
   void onResult(const NimBLEAdvertisedDevice *dev) override {
     if (s_found || !dev->isAdvertisingService(UUID_SVC)) return;
-    s_target = dev->getAddress();
+    // The phone advertises with a resolvable private address; the controller
+    // resolves it against the restored IRK and reports the identity as an
+    // *_ID type (PUBLIC_ID/RANDOM_ID). Connecting with that ID type makes the
+    // link record the on-air RPA as the peer, so the stored bond (keyed on the
+    // plain identity address) is not found and the board re-pairs on every
+    // reconnect. Normalise the type to the base identity type so the security
+    // lookup matches the bond and the link is simply re-encrypted.
+    ble_addr_t a = *dev->getAddress().getBase();
+    if (a.type == BLE_ADDR_PUBLIC_ID)      a.type = BLE_ADDR_PUBLIC;
+    else if (a.type == BLE_ADDR_RANDOM_ID) a.type = BLE_ADDR_RANDOM;
+    s_target = NimBLEAddress(a);
     s_found = true;
     NimBLEDevice::getScan()->stop();
   }
@@ -138,7 +150,7 @@ static void startScan() {
 
 static bool connectAndSubscribe() {
   setState(OBB_CONNECTING);
-  logAdd("xDrip found %s", s_target.toString().c_str());
+  logAdd("xDrip found %s/t%d", s_target.toString().c_str(), s_target.getType());
   if (!s_client) {
     s_client = NimBLEDevice::createClient();
     s_client->setClientCallbacks(&s_clientCb, false);
@@ -164,12 +176,24 @@ static bool connectAndSubscribe() {
   if (!s_client->isConnected() || !s_client->secureConnection()) {
     logAdd("pairing failed (rc %d) - pairing mode + accept on phone", s_client->getLastError());
     s_client->disconnect();
-    // a stale bond (phone forgot us) would make every later attempt fail:
-    // drop it so the next connection pairs afresh
-    NimBLEDevice::deleteBond(s_target);
+    // A stale bond (the phone forgot us) makes every later attempt fail, so the
+    // bond must eventually be dropped to pair afresh. But a single failure is
+    // often just a transient link drop mid-handshake (remote terminated); on a
+    // reconnect our stored key is still valid, so retry a few times before
+    // wiping the bond and forcing the user through a new pairing window.
+    if (NimBLEDevice::isBonded(s_target)) {
+      if (++s_secureFails >= SECURE_FAIL_LIMIT) {
+        logAdd("dropping stale bond after %d failures", s_secureFails);
+        NimBLEDevice::deleteBond(s_target);
+        s_secureFails = 0;
+      }
+    } else {
+      s_secureFails = 0;   // never bonded: a fresh pairing simply did not complete
+    }
     s_nextActionMs = millis() + PAIR_FAIL_MS;
     return false;
   }
+  s_secureFails = 0;
   NimBLERemoteService *svc = s_client->getService(UUID_SVC);
   if (!svc) { logAdd("OBB service missing"); s_client->disconnect(); return false; }
 
