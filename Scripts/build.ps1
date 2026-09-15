@@ -123,8 +123,19 @@ New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 if ($Clean -and (Test-Path $buildPath)) { Remove-Item -Recurse -Force $buildPath }
 New-Item -ItemType Directory -Force -Path $buildPath | Out-Null
 
+# The firmware carries its build number (WSMON_BUILD) so the OTA update can compare
+# it with the update.inf published in the repository: the number being written
+# by a release build, else the one already in update.inf.
+$BuildNumber = $NewBuild
+if (-not $BuildNumber) {
+    $BuildNumber = if (Test-Path $infPath) { (Get-Content $infPath -Raw).Trim() } else { (Get-Date -Format 'yyyyMMdd') + '00' }
+}
+$flags = "-DWSMON_BUILD=${BuildNumber}UL"
+if ($ExtraFlags) { $flags += " $ExtraFlags" }
+Write-Host ("    Build: {0}" -f $BuildNumber)
+
 $cliArgs = @('compile', '--fqbn', $Fqbn, '--build-path', $buildPath, '--output-dir', $outDir, '--warnings', 'default')
-if ($ExtraFlags) { $cliArgs += @('--build-property', "compiler.cpp.extra_flags=$ExtraFlags", '--build-property', "compiler.c.extra_flags=$ExtraFlags") }
+$cliArgs += @('--build-property', "compiler.cpp.extra_flags=$flags", '--build-property', "compiler.c.extra_flags=$flags")
 & $ArduinoCli @cliArgs $Sketch
 if ($LASTEXITCODE -ne 0) { throw "Build FAILED (arduino-cli exit $LASTEXITCODE)." }
 

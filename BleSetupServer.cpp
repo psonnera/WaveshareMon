@@ -18,6 +18,7 @@
 #include "TimeService.h"
 #include "EpdUi.h"
 #include "PowerCycle.h"
+#include "OtaUpdate.h"
 void miBandOnConnect(uint16_t connHandle);     // BleMiBand.cpp
 void miBandOnDisconnect(uint16_t connHandle);
 #include "Log.h"
@@ -42,7 +43,7 @@ static bool                  s_advertising = false;
 static volatile int          s_clients = 0;
 static volatile bool         s_logSubscribed = false;
 static uint32_t              s_logSent = 0;         // log entries already pushed (logTotal() based)
-static volatile uint8_t      s_pendingCmd = 0;      // 1 reboot, 2 factory, 3 warn, 4 alarm, 5 refresh, 6 snooze, 7 setupoff, 8 mbforget, 9 wifiscan
+static volatile uint8_t      s_pendingCmd = 0;      // 1 reboot, 2 factory, 3 warn, 4 alarm, 5 refresh, 6 snooze, 7 setupoff, 8 mbforget, 9 wifiscan, 10 update, 11 updcheck
 static volatile bool         s_cfgChanged = false;
 
 // ---- JSON builders ------------------------------------------------------------
@@ -67,6 +68,9 @@ static void buildInfo(std::string &out) {
   d["miband"] = miBandStateName();
   d["mbkey"] = cfg.mibandKeySet != 0;
   d["live"] = gs.live;                                  // false: the panel shows its status page
+  d["build"] = (uint32_t)WSMON_BUILD;                   // running build (YYYYMMDDnn, 0 = hand built)
+  d["ota"] = otaStatus();                               // "" / checking / up to date / update N available / updating n% / failed: ...
+  d["otabuild"] = otaLatestBuild();                     // newest build seen on the server (0 = never checked)
   char st[48];
   cycleSourceStatus(st, sizeof(st));
   d["stat"] = st;
@@ -254,6 +258,8 @@ class CmdCb : public NimBLECharacteristicCallbacks {
     else if (s == "setupoff")  s_pendingCmd = 7;
     else if (s == "mbforget")  s_pendingCmd = 8;
     else if (s == "wifiscan")  s_pendingCmd = 9;
+    else if (s == "update")    s_pendingCmd = 10;      // check the repository and install a newer build
+    else if (s == "updcheck")  s_pendingCmd = 11;      // check only
   }
 } s_cmdCb;
 
@@ -391,6 +397,8 @@ void setupServerTick() {
     case 7: setupServerAdvertise(false); break;
     case 8: miBandForgetKey(); break;
     case 9: wifiScanStart(); break;
+    case 10: otaRequest(true); break;
+    case 11: otaRequest(false); break;
   }
 }
 

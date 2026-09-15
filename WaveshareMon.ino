@@ -41,6 +41,7 @@
 #include "LibreLinkUpClient.h"
 #include "EpdUi.h"
 #include "PowerCycle.h"
+#include "OtaUpdate.h"
 #include "DebugInject.h"
 #include "Log.h"
 #include <Wire.h>
@@ -220,6 +221,7 @@ void loop() {
   // sleeping modes evaluate the alarms once, after the fetch (PowerCycle)
   if (cycleAwake()) alarms.tick();
   setupServerTick();
+  otaTick();                                  // firmware update check / install (blocks while installing)
 
   cycleTick();                                // may deep-sleep and not return
   ui.tick();

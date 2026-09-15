@@ -113,12 +113,25 @@ static void startConnect() {
   logDebug("wifi: %s join %s", s_fastTry ? "fast" : "full", cfg.wifiSsid);
 }
 
+static bool s_hold = false;      // wifiHold(): the station is wanted regardless of the source
+
+static bool wantNow() {
+  return cfg.wifiConfigured() && (SRC_IS_WIFI(cfg.source) || s_hold);
+}
+
 void wifiBegin() {
   wifiApplyConfig();
 }
 
+void wifiHold(bool on) {
+  if (s_hold == on) return;
+  s_hold = on;
+  if (wantNow() == s_wanted) return;     // nothing to change
+  wifiApplyConfig();
+}
+
 void wifiApplyConfig() {
-  bool want = SRC_IS_WIFI(cfg.source) && cfg.wifiConfigured();
+  bool want = wantNow();
   s_failText[0] = 0;
   if (!want) {
     if (s_wanted) {

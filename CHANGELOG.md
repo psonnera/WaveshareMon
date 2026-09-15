@@ -2,6 +2,12 @@
 
 ## Unreleased — 1.1.0
 
+- Firmware update over Wi-Fi (OTA): the app's **Update firmware** command (or serial `update`)
+  fetches `Binaries/WS_ePaper154G/update.inf` from the GitHub repository, compares the build
+  number with the running one (`WSMON_BUILD`, set by `Scripts/build.ps1` from `update.inf`) and
+  streams the image into the spare OTA slot. Progress in the log and the Info `ota` field; a
+  Bluetooth source switches Wi-Fi on for the update only; on battery the install needs 30 %.
+  Once a day the device checks `update.inf` when Wi-Fi is up anyway and reports a newer build.
 - Wi-Fi setup: the bottom line and the app now say *why* a join failed (`Wi-Fi: network not
   found`, `Wi-Fi: wrong password`, else the ESP32 reason code) instead of `Wi-Fi: failed`; the
   Info JSON carries it as `wifierr`. New `wifiscan` command (serial and BLE) and Scan

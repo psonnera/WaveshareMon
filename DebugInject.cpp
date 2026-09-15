@@ -5,6 +5,7 @@
   Copyright (C) 2026 Patrick Sonnerat
 */
 #include "DebugInject.h"
+#include "Version.h"
 #include "Board.h"
 void enterSetupMode(bool timed);   // WaveshareMon.ino
 void powerOff();                   // WaveshareMon.ino
@@ -16,6 +17,7 @@ void powerOff();                   // WaveshareMon.ino
 #include "BleObbClient.h"
 #include "BleMiBand.h"
 #include "BleSetupServer.h"
+#include "OtaUpdate.h"
 #include "WifiService.h"
 #include "NightscoutClient.h"
 #include "DexcomShareClient.h"
@@ -133,6 +135,8 @@ void debugInjectPoll() {
                     cycleWakeName(), (unsigned long)cycleWakes(), cycleAwake(), cfg.noSleep,
                     cfg.firstRun, cycleStatusText(), miBandStateName(), cfg.mibandKeySet,
                     dxStatus(), llStatus());
+      Serial.printf("[dbg] build=%lu ota='%s' server=%lu\n", (unsigned long)WSMON_BUILD, otaStatus(),
+                    (unsigned long)otaLatestBuild());
       if (NimBLEDevice::isInitialized()) {
         int nb = NimBLEDevice::getNumBonds();
         Serial.printf("[dbg] bonds=%d", nb);
@@ -164,6 +168,10 @@ void debugInjectPoll() {
       alarms.snooze();
     } else if (strcmp(line, "ns") == 0) {
       nsRequestNow();
+    } else if (strncmp(line, "update", 6) == 0) {
+      // "update": fetch update.inf from the repository and install a newer build;
+      // "update check": only report
+      otaRequest(strstr(line, "check") == nullptr);
     } else if (strcmp(line, "wifiscan") == 0) {
       wifiScanStart();       // the networks the radio sees (2.4 GHz), printed when done
     } else if (strcmp(line, "dx") == 0) {

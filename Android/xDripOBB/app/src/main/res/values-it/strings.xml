@@ -136,6 +136,9 @@
     <string name="cmd_factory">Ripristino di fabbrica</string>
     <string name="factory_message">Cancella la configurazione, l\'associazione e la chiave Mi Band. Il dispositivo si riavvia in modalità configurazione.</string>
     <string name="factory_confirm">Ripristina</string>
+    <string name="cmd_update">Aggiorna firmware</string>
+    <string name="update_message">Scarica l\'ultimo firmware dal repository GitHub tramite Wi-Fi e riavvia il dispositivo. Non succede nulla se è già aggiornato. Segui l\'avanzamento nel registro qui sotto.</string>
+    <string name="update_confirm">Aggiorna</string>
     <string name="device_reading">lettura…</string>
 
     <!-- ===== pagina sorgente dati: schede Mi Band e bridge ===== -->

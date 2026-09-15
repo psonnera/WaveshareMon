@@ -88,6 +88,18 @@ press keeps the board awake for about half a minute only, less than a compile ta
 `Scriptsuild.ps1 -Port COMx` compiles first, then waits for the port and flashes the moment
 it shows up.
 
+### Updating over Wi-Fi
+
+A flashed device updates itself from this repository: the app's **Device** page has an
+**Update firmware** command (the serial console accepts `update`, and `update check` to only
+report). The device downloads `Binaries/WS_ePaper154G/update.inf`, compares the build number
+with its own, streams `WaveshareMon.ino.bin` into the spare OTA slot when the repository is
+newer and restarts. Progress goes to the log (`update: ...`) and to the `ota` field of the
+Info characteristic. A Bluetooth source (xDrip, Mi Band) needs a Wi-Fi network configured on
+the **Connection** page; the radio is switched on for the update only. On battery the install
+needs 30 % or more. Once a day, when Wi-Fi is up for the data source anyway, the device also
+checks `update.inf` and reports `update: build ... available` in the log without installing.
+
 Manual flashing with esptool (offsets for the ESP32-S3). Use esptool 5.x (`pip install esptool`)
 with `--before usb-reset`: the esptool 4.x bundled with the Arduino core loses the port when the
 native USB re-enumerates. A running firmware also accepts the serial command `dfu` to reboot into
@@ -163,7 +175,8 @@ python -m esptool --chip esp32s3 --port COM4 --baud 921600 --before usb-reset wr
 (wake cause and count, Mi Band state, Dexcom/Libre status, a `bonds=` line), `cfg`,
 `set <key> <value>`, `setup on|off`, `refresh`, `warn`, `alarm`, `snooze`, `ns` / `dx` / `llu`
 (fetch now from Nightscout / Dexcom Share / LibreLinkUp), `wifiscan` (list the 2.4 GHz networks
-the radio sees), `sleep` (end the awake period or the
+the radio sees), `update` / `update check` (firmware update from the repository, see
+*Updating over Wi-Fi*), `sleep` (end the awake period or the
 radio window now), `log`, `btn` (watch both buttons for 20 s), `rtc` (probe the PCF85063),
 `unbond` (forget the phone bond without a factory reset), `mbforget` (forget xDrip's Mi Band
 key), `poweroff` (deep sleep, same as holding PWR), `reboot`, `dfu`, `factory`.
@@ -179,9 +192,9 @@ Service `4d5f0001-2b8c-4a3e-9f61-7c2d9e8b5a10`
 
 | Characteristic | UUID (…-2b8c-4a3e-9f61-7c2d9e8b5a10) | Access | Content |
 |---|---|---|---|
-| Info | `4d5f0002` | read | JSON: `fw, name, bat, mv, wifi, wifierr` (why the last join failed: *network not found*, *wrong password*, …, empty when it did not), `ip, src, obb, bg, age, uptime, wakes, wake` (boot/timer/BOOT/PWR), `mac, miband` (off/not paired/waiting/auth/connected), `mbkey, live, stat` (the bottom-line status text) |
+| Info | `4d5f0002` | read | JSON: `fw, name, bat, mv, wifi, wifierr` (why the last join failed: *network not found*, *wrong password*, …, empty when it did not), `ip, src, obb, bg, age, uptime, wakes, wake` (boot/timer/BOOT/PWR), `mac, miband` (off/not paired/waiting/auth/connected), `mbkey, live, stat` (the bottom-line status text), `build` (running build number, YYYYMMDDnn), `ota` (update state: empty, *checking*, *up to date*, *update N available*, *updating n%*, *failed: …*), `otabuild` (newest build seen in the repository) |
 | Config | `4d5f0003` | read/write, encrypted | JSON, any subset of: `src` (0-4) `units ssid pass url token dxuser dxpass dxreg lluser llpass llreg llver tlsv tz ylo yhi rlo rhi aen wlo alo whi ahi nor wvol avol arep snoz t24 dmy sline name`, plus write-only `now` (epoch seconds, sets the clock). Secrets are never read back; `haspass hastoken hasdxpass hasllpass` say whether one is stored. |
-| Command | `4d5f0004` | write, encrypted | `reboot`, `factory`, `testwarn`, `testalarm`, `refresh`, `snooze`, `setupoff`, `mbforget`, `wifiscan` |
+| Command | `4d5f0004` | write, encrypted | `reboot`, `factory`, `testwarn`, `testalarm`, `refresh`, `snooze`, `setupoff`, `mbforget`, `wifiscan`, `update` (install a newer build from the repository), `updcheck` (report only) |
 | Log | `4d5f0005` | notify | log lines |
 | Scan | `4d5f0006` | read | JSON `{"scan": "idle|busy|done", "nets": [{"s": ssid, "r": rssi, "c": channel, "e": 0|1}, …]}` — the 2.4 GHz networks the device sees, strongest first, a few seconds after the `wifiscan` command |
 

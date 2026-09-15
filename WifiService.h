@@ -14,6 +14,9 @@ enum WifiState : uint8_t { WS_WIFI_OFF = 0, WS_WIFI_CONNECTING, WS_WIFI_UP, WS_W
 void wifiBegin();              // connects when the source needs it and an SSID is set
 void wifiTick();
 void wifiApplyConfig();        // after a config change (reconnect / disconnect)
+// keep the station up although the source does not need it (firmware update
+// on a Bluetooth source); needs an SSID. off releases it again.
+void wifiHold(bool on);
 void wifiSleep();              // radio off before deep sleep
 WifiState wifiState();
 const char *wifiStateName();

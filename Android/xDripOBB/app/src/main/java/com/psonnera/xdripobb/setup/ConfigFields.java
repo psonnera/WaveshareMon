@@ -110,10 +110,12 @@ public final class ConfigFields {
     }
 
     public static final String CMD_FACTORY = "factory";
+    public static final String CMD_UPDATE = "update";     // firmware update from the GitHub repository (Wi-Fi)
 
     public static final Command[] COMMANDS = {
             new Command(R.string.cmd_refresh, "refresh"), new Command(R.string.cmd_snooze, "snooze"),
             new Command(R.string.cmd_testwarn, "testwarn"), new Command(R.string.cmd_testalarm, "testalarm"),
             new Command(R.string.cmd_setupoff, "setupoff"), new Command(R.string.cmd_mbforget, "mbforget"),
+            new Command(R.string.cmd_update, CMD_UPDATE),
             new Command(R.string.cmd_reboot, "reboot"), new Command(R.string.cmd_factory, CMD_FACTORY)};
 }

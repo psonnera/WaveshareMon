@@ -137,6 +137,9 @@
     <string name="cmd_factory">Réinitialisation d\'usine</string>
     <string name="factory_message">Efface la configuration, l\'appairage et la clé Mi Band. L\'appareil redémarre en mode configuration.</string>
     <string name="factory_confirm">Réinitialiser</string>
+    <string name="cmd_update">Mettre à jour le firmware</string>
+    <string name="update_message">Télécharge le dernier firmware depuis le dépôt GitHub par Wi-Fi et redémarre l\'appareil. Rien ne se passe s\'il est déjà à jour. Suivez la progression dans le journal ci-dessous.</string>
+    <string name="update_confirm">Mettre à jour</string>
     <string name="device_reading">lecture…</string>
 
     <!-- ===== page source de données : cartes Mi Band et passerelle ===== -->
