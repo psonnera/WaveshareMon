@@ -7,6 +7,7 @@
 
   Copyright (C) 2026 Patrick Sonnerat
 */
+#include <esp_attr.h>
 #include "GlucoseState.h"
 #include <Preferences.h>
 #include <string.h>
@@ -17,6 +18,7 @@ static const char *NVS_NS = "wsmonhist";
 
 void GlucoseState::onReading(uint16_t newMgdl, time_t utc, int arrowAngleIn) {
   if (newMgdl < 10 || newMgdl > 600) return;   // implausible, ignore
+  sourceSeq++;
 
   uint32_t nowMs = millis();
   // de-duplicate: same value and timestamp again (reconnect replays,
@@ -49,6 +51,7 @@ void GlucoseState::onReading(uint16_t newMgdl, time_t utc, int arrowAngleIn) {
   hasData = true;
   live = true;
   remoteStale = false;
+  readingSeq++;
 
   if (histCount < HIST_SIZE) {
     hist[histCount++] = newMgdl;
@@ -115,7 +118,57 @@ void GlucoseState::persist() {
   p.end();
 }
 
+// ---- deep-sleep copy (RTC slow memory, lost on a cold boot) ---------------------
+
+struct GlucoseRtc {
+  uint32_t magic;
+  uint16_t mgdl;
+  int16_t  arrowAngle;
+  int64_t  readingUtc;
+  uint8_t  hasData, live, remoteStale, histCount, deltaValid;
+  int16_t  deltaMgdl;
+  uint16_t hist[HIST_SIZE];
+  char     infoLine[96];
+  uint32_t sourceSeq, readingSeq;
+};
+#define GS_MAGIC 0x47535431UL
+RTC_DATA_ATTR static GlucoseRtc s_rtc;
+
+void GlucoseState::saveRtc() {
+  s_rtc.magic = GS_MAGIC;
+  s_rtc.mgdl = mgdl;
+  s_rtc.arrowAngle = (int16_t)arrowAngle;
+  s_rtc.readingUtc = (int64_t)readingUtc;
+  s_rtc.hasData = hasData;
+  s_rtc.live = live;
+  s_rtc.remoteStale = remoteStale;
+  s_rtc.histCount = histCount;
+  s_rtc.deltaValid = deltaValid;
+  s_rtc.deltaMgdl = deltaMgdl;
+  memcpy(s_rtc.hist, hist, sizeof(hist));
+  memcpy(s_rtc.infoLine, infoLine, sizeof(infoLine));
+  s_rtc.sourceSeq = sourceSeq;
+  s_rtc.readingSeq = readingSeq;
+}
+
 void GlucoseState::restore() {
+  if (s_rtc.magic == GS_MAGIC) {          // woke from deep sleep: everything is still valid
+    mgdl = s_rtc.mgdl;
+    arrowAngle = s_rtc.arrowAngle;
+    readingUtc = (time_t)s_rtc.readingUtc;
+    readingMillis = millis();
+    hasData = s_rtc.hasData;
+    live = s_rtc.live;
+    remoteStale = s_rtc.remoteStale;
+    histCount = s_rtc.histCount;
+    deltaValid = s_rtc.deltaValid;
+    deltaMgdl = s_rtc.deltaMgdl;
+    memcpy(hist, s_rtc.hist, sizeof(hist));
+    memcpy(infoLine, s_rtc.infoLine, sizeof(infoLine));
+    sourceSeq = s_rtc.sourceSeq;
+    readingSeq = s_rtc.readingSeq;
+    return;
+  }
   Preferences p;
   p.begin(NVS_NS, true);
   if (p.getBytesLength("hist") == sizeof(hist)) {
@@ -143,6 +196,19 @@ int nsDirectionToAngle(const char *dir) {
   if (strcmp(dir, "FortyFiveUp") == 0)   return -45;
   if (strcmp(dir, "SingleUp") == 0)      return -75;
   if (strcmp(dir, "DoubleUp") == 0)      return -90;
+  return ARROW_HIDDEN;
+}
+
+int slopeArrowToAngle(const char *s) {
+  if (!s) return ARROW_HIDDEN;
+  // xDrip BgReading.slopeToArrowSymbol() characters, UTF-8 encoded
+  if (memcmp(s, "\xE2\x87\x88", 3) == 0) return -90;  // ⇈ DoubleUp
+  if (memcmp(s, "\xE2\x86\x91", 3) == 0) return -75;  // ↑ SingleUp
+  if (memcmp(s, "\xE2\x86\x97", 3) == 0) return -45;  // ↗ FortyFiveUp
+  if (memcmp(s, "\xE2\x86\x92", 3) == 0) return 0;    // → Flat
+  if (memcmp(s, "\xE2\x86\x98", 3) == 0) return 45;   // ↘ FortyFiveDown
+  if (memcmp(s, "\xE2\x86\x93", 3) == 0) return 75;   // ↓ SingleDown
+  if (memcmp(s, "\xE2\x87\x8A", 3) == 0) return 90;   // ⇊ DoubleDown
   return ARROW_HIDDEN;
 }
 

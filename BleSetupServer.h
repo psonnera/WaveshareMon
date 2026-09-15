@@ -9,6 +9,8 @@
     4d5f0003-...  Config  READ | WRITE   JSON settings (encrypted, bonded)
     4d5f0004-...  Command WRITE          text command (encrypted, bonded)
     4d5f0005-...  Log     NOTIFY         log lines (plain)
+    4d5f0006-...  Scan    READ           JSON Wi-Fi scan result (plain); the
+                                         "wifiscan" command starts a scan
 
   Copyright (C) 2026 Patrick Sonnerat
 */
@@ -25,5 +27,7 @@ bool setupServerAdvertising();
 bool setupServerClientConnected();
 // forward new log lines to a subscribed app; serve deferred commands
 void setupServerTick();
+// disconnect every BLE client (before deep sleep)
+void setupServerDropClients();
 
 #endif

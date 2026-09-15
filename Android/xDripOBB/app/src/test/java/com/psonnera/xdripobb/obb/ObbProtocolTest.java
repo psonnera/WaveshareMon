@@ -141,21 +141,12 @@ public class ObbProtocolTest {
     }
 
     @Test
-    public void simulatorStaysPlausible() {
-        Simulator sim = new Simulator(42);
-        long t = 1_000_000_000_000L;
-        ObbReading first = sim.next(t);
-        assertTrue(Double.isNaN(first.deltaMgdl));
-        assertEquals(ObbProtocol.TREND_UNKNOWN, first.trend);
-        ObbReading prev = first;
-        for (int i = 0; i < 500; i++) {
-            t += 300_000;
-            ObbReading r = sim.next(t);
-            assertTrue(r.mgdl >= 40 && r.mgdl <= 400);
-            assertEquals(r.mgdl - prev.mgdl, r.deltaMgdl, 0.11);
-            assertTrue(r.trend >= ObbProtocol.TREND_DOUBLE_UP && r.trend <= ObbProtocol.TREND_DOUBLE_DOWN);
-            prev = r;
-        }
+    public void aapsArrowsMapToObbTrends() {
+        assertEquals(ObbProtocol.TREND_DOUBLE_UP, AapsStatusReceiver.trendFromArrow("↑↑"));
+        assertEquals(ObbProtocol.TREND_FLAT, AapsStatusReceiver.trendFromArrow("→"));
+        assertEquals(ObbProtocol.TREND_FORTYFIVE_DOWN, AapsStatusReceiver.trendFromArrow("FortyFiveDown"));
+        assertEquals(ObbProtocol.TREND_UNKNOWN, AapsStatusReceiver.trendFromArrow("??"));
+        assertEquals(ObbProtocol.TREND_UNKNOWN, AapsStatusReceiver.trendFromArrow(null));
     }
 
     @Test

@@ -10,7 +10,10 @@
 #include "Alarms.h"
 #include "TimeService.h"
 #include "Log.h"
+#include "BleBonds.h"
 #include <NimBLEDevice.h>
+#include <esp_task_wdt.h>
+#include "nimble/nimble/host/include/host/ble_store.h"
 
 // OBB service and characteristic UUIDs (spec 3.1, frozen from v0.1)
 static const NimBLEUUID UUID_SVC   ("e9ca0001-e28a-47ac-bebb-2f51794c9581");
@@ -137,6 +140,8 @@ static void onStatusLine(NimBLERemoteCharacteristic *chr, uint8_t *data, size_t 
 
 // ---- connection sequence (main loop context) ----------------------------------
 
+static void logBonds();
+
 static void startScan() {
   s_found = false;
   NimBLEScan *scan = NimBLEDevice::getScan();
@@ -163,7 +168,9 @@ static bool connectAndSubscribe() {
   // so the setup advertising is paused for the duration of the attempt.
   bool wasAdvertising = NimBLEDevice::getAdvertising()->isAdvertising();
   if (wasAdvertising) NimBLEDevice::stopAdvertising();
-  bool connected = s_client->connect(s_target, true);
+  // No MTU exchange inside connect(): it must return the moment the link is
+  // up so that encryption can be started first (see below).
+  bool connected = s_client->connect(s_target, true, false, false);
   if (wasAdvertising) NimBLEDevice::startAdvertising();
   if (!connected) {
     // typical cause: xDrip drops unbonded links while its pairing window is closed
@@ -171,9 +178,45 @@ static bool connectAndSubscribe() {
     s_nextActionMs = millis() + PAIR_FAIL_MS;
     return false;
   }
-  // encrypted link is mandatory; first contact bonds (Just Works) while the
-  // user has the pairing window open in xDrip and accepts the phone's dialog
-  if (!s_client->isConnected() || !s_client->secureConnection()) {
+  // Which peer identity the link carries and whether the host has its key. No
+  // key means a pairing follows (first contact, or the phone's identity key
+  // changed so its private address did not resolve to the bonded identity).
+  bool hadKey;
+  {
+    NimBLEConnInfo ci = s_client->getConnInfo();
+    NimBLEAddress id = ci.getIdAddress();
+    struct ble_store_key_sec k = {};
+    k.peer_addr = *id.getBase();
+    struct ble_store_value_sec v = {};
+    int rc = ble_store_read_peer_sec(&k, &v);
+    hadKey = rc == 0 && v.ltk_present;
+    logDebug("id %s/t%d key rc=%d ltk=%d", id.toString().c_str(), id.getType(), rc,
+             rc == 0 ? v.ltk_present : -1);
+  }
+  // Encrypted link is mandatory; first contact bonds (Just Works) while the
+  // user has the pairing window open on the phone and accepts its dialog.
+  //
+  // Race on every later connection: Android's GATT server sends an SMP
+  // Security Request (with the MITM flag) as soon as a bonded device
+  // connects. NimBLE refuses to answer such a request with an unauthenticated
+  // (Just Works) key and starts a fresh pairing instead, which the phone will
+  // not accept outside its pairing window: both sides then drop the bond.
+  // Starting LTK encryption right here, before the phone's request is
+  // processed, makes that request arrive mid-procedure and be ignored.
+  // The security procedure is started asynchronously and polled with a
+  // deadline: NimBLE's blocking variant waits without limit, and a first
+  // pairing on Android needs two user prompts that can take longer than the
+  // 30 s SMP timer while the loop task's watchdog fires at 60 s.
+  bool secured = false;
+  if (s_client->isConnected() && s_client->secureConnection(true)) {
+    uint32_t t0 = millis();
+    while (s_client->isConnected() && millis() - t0 < 50000) {
+      if (s_client->getConnInfo().isEncrypted()) { secured = true; break; }
+      esp_task_wdt_reset();
+      delay(50);
+    }
+  }
+  if (!secured) {
     logAdd("pairing failed (rc %d) - pairing mode + accept on phone", s_client->getLastError());
     s_client->disconnect();
     // A stale bond (the phone forgot us) makes every later attempt fail, so the
@@ -194,6 +237,7 @@ static bool connectAndSubscribe() {
     return false;
   }
   s_secureFails = 0;
+  s_client->exchangeMTU();                // deferred from connect(), see above
   NimBLERemoteService *svc = s_client->getService(UUID_SVC);
   if (!svc) { logAdd("OBB service missing"); s_client->disconnect(); return false; }
 
@@ -230,21 +274,49 @@ static bool connectAndSubscribe() {
   s_disconnected = false;
   setState(OBB_CONNECTED);
   logAdd("xDrip connected");
+  if (!hadKey) {
+    // a pairing just completed: the keys are in RAM, make sure they reach the
+    // flash even when the phone's identity was already on record (see BleBonds.h)
+    bleRepersistBond(s_client->getConnInfo().getIdAddress());
+    if (cfg.debugLog) logBonds();
+  }
   return true;
 }
 
 // ---- public -------------------------------------------------------------------
 
+static void logBonds() {
+  // which peers the host remembers and whether their identity key (IRK) is
+  // there: without it the controller cannot resolve the phone's private
+  // address and every reconnect looks like a stranger
+  int n = NimBLEDevice::getNumBonds();
+  for (int i = 0; i < n; i++) {
+    NimBLEAddress b = NimBLEDevice::getBondedAddress(i);
+    struct ble_store_key_sec k = {};
+    k.peer_addr = *b.getBase();
+    struct ble_store_value_sec v = {};
+    int rc = ble_store_read_peer_sec(&k, &v);
+    logDebug("bond %s/t%d rc%d ltk%d irk%d cs%d au%d sc%d", b.toString().c_str(), b.getType(),
+             rc, v.ltk_present, v.irk_present, v.csrk_present, v.authenticated, v.sc);
+  }
+  if (!n) logDebug("no bond stored");
+}
+
 void obbBegin() {
   s_enabled = true;
+  if (cfg.debugLog) logBonds();
   s_nextActionMs = millis() + 500;
   setState(OBB_IDLE);
 }
 
 void obbStop() {
+  if (!s_enabled) return;                 // never started (Wi-Fi source, BLE off)
   s_enabled = false;
   NimBLEDevice::getScan()->stop();
-  if (s_client && s_client->isConnected()) s_client->disconnect();
+  if (s_client && s_client->isConnected()) {
+    s_client->disconnect();
+    delay(50);                            // let the disconnect reach the phone
+  }
   setState(OBB_IDLE);
 }
 

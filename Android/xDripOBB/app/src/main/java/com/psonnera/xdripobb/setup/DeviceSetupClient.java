@@ -8,6 +8,7 @@
  *   Config   ...0003  READ|WRITE (enc)  JSON settings (partial writes allowed)
  *   Command  ...0004  WRITE (enc)       UTF-8 command word
  *   Log      ...0005  NOTIFY (plain)    UTF-8 log lines
+ *   Scan     ...0006  READ (plain)      JSON Wi-Fi scan result (after the "wifiscan" command)
  * GATT operations are serialised through a small queue (Android allows one in flight).
  */
 package com.psonnera.xdripobb.setup;
@@ -27,6 +28,8 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
+
+import com.psonnera.xdripobb.R;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -45,6 +48,7 @@ public class DeviceSetupClient {
     public static final UUID CONFIG_UUID  = UUID.fromString("4d5f0003-2b8c-4a3e-9f61-7c2d9e8b5a10");
     public static final UUID COMMAND_UUID = UUID.fromString("4d5f0004-2b8c-4a3e-9f61-7c2d9e8b5a10");
     public static final UUID LOG_UUID     = UUID.fromString("4d5f0005-2b8c-4a3e-9f61-7c2d9e8b5a10");
+    public static final UUID SCAN_UUID    = UUID.fromString("4d5f0006-2b8c-4a3e-9f61-7c2d9e8b5a10");
     public static final UUID CCCD_UUID    = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     public static final String NAME_PREFIX = "WaveshareMon";
 
@@ -53,6 +57,7 @@ public class DeviceSetupClient {
         void onConnectionState(String state, boolean connected);
         void onInfo(String json);
         void onConfig(String json);
+        void onWifiScan(String json);
         void onWriteDone(String what, boolean ok);
         void onLogLine(String line);
         void onError(String msg);
@@ -64,7 +69,7 @@ public class DeviceSetupClient {
     private final BluetoothAdapter adapter;
     private BluetoothLeScanner scanner;
     private BluetoothGatt gatt;
-    private BluetoothGattCharacteristic infoChar, configChar, commandChar, logChar;
+    private BluetoothGattCharacteristic infoChar, configChar, commandChar, logChar, scanChar;
     private boolean ready = false;
 
     private final Deque<Runnable> ops = new ArrayDeque<>();
@@ -94,19 +99,19 @@ public class DeviceSetupClient {
         }
 
         @Override
-        public void onScanFailed(int errorCode) { post(() -> listener.onError("scan failed: " + errorCode)); }
+        public void onScanFailed(int errorCode) { post(() -> listener.onError(ctx.getString(R.string.ble_scan_failed, errorCode))); }
     };
 
     public void startScan() {
-        if (adapter == null || !adapter.isEnabled()) { listener.onError("Bluetooth off / unavailable"); return; }
+        if (adapter == null || !adapter.isEnabled()) { listener.onError(ctx.getString(R.string.ble_off)); return; }
         scanner = adapter.getBluetoothLeScanner();
-        if (scanner == null) { listener.onError("no BLE scanner"); return; }
+        if (scanner == null) { listener.onError(ctx.getString(R.string.ble_no_scanner)); return; }
         // no filter: some stacks drop 128-bit UUID filters; we filter in the callback instead
         ScanSettings s = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
         try {
             scanner.startScan(Collections.<ScanFilter>emptyList(), s, scanCb);
-            listener.onConnectionState("scanning", false);
-        } catch (SecurityException e) { listener.onError("scan: " + e.getMessage()); }
+            listener.onConnectionState(ctx.getString(R.string.ble_scanning), false);
+        } catch (SecurityException e) { listener.onError(ctx.getString(R.string.ble_scan_error, e.getMessage())); }
     }
 
     public void stopScan() {
@@ -118,10 +123,12 @@ public class DeviceSetupClient {
     public void connect(BluetoothDevice d) {
         stopScan();
         disconnect();
-        listener.onConnectionState("connecting to " + d.getAddress(), false);
+        lastDevice = d;
+        failures = 0;
+        listener.onConnectionState(ctx.getString(R.string.ble_connecting, d.getAddress()), false);
         try {
             gatt = d.connectGatt(ctx, false, gattCb, BluetoothDevice.TRANSPORT_LE);
-        } catch (SecurityException e) { listener.onError("connect: " + e.getMessage()); }
+        } catch (SecurityException e) { listener.onError(ctx.getString(R.string.ble_connect_error, e.getMessage())); }
     }
 
     public void disconnect() {
@@ -134,34 +141,46 @@ public class DeviceSetupClient {
         }
     }
 
+    private BluetoothDevice lastDevice;
+    private boolean discovering = false;
+    private int failures = 0;
+
     private final BluetoothGattCallback gattCb = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt g, int status, int newState) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                post(() -> listener.onConnectionState("connected, requesting MTU", true));
+                discovering = false;
+                failures = 0;
+                post(() -> listener.onConnectionState(ctx.getString(R.string.ble_connected_mtu), true));
                 try { g.requestMtu(517); } catch (SecurityException ignored) {}
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 ready = false;
-                post(() -> listener.onConnectionState("disconnected (status " + status + ")", false));
+                post(() -> listener.onConnectionState(ctx.getString(R.string.ble_disconnected, status), false));
             }
         }
 
         @Override
         public void onMtuChanged(BluetoothGatt g, int mtu, int status) {
-            post(() -> listener.onConnectionState("MTU " + mtu + ", discovering services", true));
-            try { g.discoverServices(); } catch (SecurityException ignored) {}
+            // On a link the phone already shares with xDrip (Mi Band mode) Android answers
+            // with the link's current MTU at once and the real exchange completes later,
+            // firing this twice; discover once, after the exchange had time to settle.
+            if (discovering || ready) return;
+            discovering = true;
+            post(() -> listener.onConnectionState(ctx.getString(R.string.ble_discovering, mtu), true));
+            handler.postDelayed(() -> { try { g.discoverServices(); } catch (SecurityException ignored) {} }, 400);
         }
 
         @Override
         public void onServicesDiscovered(BluetoothGatt g, int status) {
             BluetoothGattService s = g.getService(SERVICE_UUID);
-            if (s == null) { post(() -> listener.onError("setup service not found on this device")); return; }
+            if (s == null) { post(() -> listener.onError(ctx.getString(R.string.ble_no_service))); return; }
             infoChar = s.getCharacteristic(INFO_UUID);
             configChar = s.getCharacteristic(CONFIG_UUID);
             commandChar = s.getCharacteristic(COMMAND_UUID);
             logChar = s.getCharacteristic(LOG_UUID);
+            scanChar = s.getCharacteristic(SCAN_UUID);     // null on firmware before 1.1.0
             ready = true;
-            post(() -> listener.onConnectionState("ready", true));
+            post(() -> listener.onConnectionState(ctx.getString(R.string.ble_ready), true));
             subscribeLog();
             readInfo();
         }
@@ -182,7 +201,7 @@ public class DeviceSetupClient {
             boolean ok = status == BluetoothGatt.GATT_SUCCESS;
             String what = c.getUuid().equals(CONFIG_UUID) ? "config" : "command";
             post(() -> listener.onWriteDone(what, ok));
-            if (!ok) post(() -> listener.onError("write " + what + " failed, status " + status + statusHint(status)));
+            if (!ok) post(() -> listener.onError(ctx.getString(R.string.ble_write_failed, what, status, statusHint(status))));
             next();
         }
 
@@ -201,8 +220,8 @@ public class DeviceSetupClient {
         public void onDescriptorWrite(BluetoothGatt g, BluetoothGattDescriptor d, int status) { next(); }
     };
 
-    private static String statusHint(int status) {
-        if (status == 5 || status == 15 || status == 8) return " (insufficient authentication/encryption: accept the pairing request, then retry)";
+    private String statusHint(int status) {
+        if (status == 5 || status == 15 || status == 8) return ctx.getString(R.string.ble_auth_hint);
         return "";
     }
 
@@ -211,8 +230,10 @@ public class DeviceSetupClient {
             String text = new String(value, StandardCharsets.UTF_8);
             if (u.equals(INFO_UUID)) post(() -> listener.onInfo(text));
             else if (u.equals(CONFIG_UUID)) post(() -> listener.onConfig(text));
+            else if (u.equals(SCAN_UUID)) post(() -> listener.onWifiScan(text));
         } else {
-            post(() -> listener.onError("read " + (u.equals(INFO_UUID) ? "info" : "config") + " failed, status " + status + statusHint(status)));
+            String what = u.equals(INFO_UUID) ? "info" : u.equals(SCAN_UUID) ? "scan" : "config";
+            post(() -> listener.onError(ctx.getString(R.string.ble_read_failed, what, status, statusHint(status))));
         }
         next();
     }
@@ -228,10 +249,13 @@ public class DeviceSetupClient {
 
     public void readInfo() { enqueue(() -> read(infoChar, "info")); }
     public void readConfig() { enqueue(() -> read(configChar, "config")); }
+    public boolean hasWifiScan() { return scanChar != null; }
+    public void readWifiScan() { enqueue(() -> read(scanChar, "scan")); }
 
     public void writeConfig(String json) { enqueue(() -> write(configChar, json.getBytes(StandardCharsets.UTF_8), "config")); }
     public void sendCommand(String cmd) { enqueue(() -> write(commandChar, cmd.getBytes(StandardCharsets.UTF_8), "command " + cmd)); }
 
+    @SuppressWarnings("deprecation")
     private void subscribeLog() {
         enqueue(() -> {
             if (gatt == null || logChar == null) { next(); return; }
@@ -239,26 +263,37 @@ public class DeviceSetupClient {
                 gatt.setCharacteristicNotification(logChar, true);
                 BluetoothGattDescriptor d = logChar.getDescriptor(CCCD_UUID);
                 if (d == null) { next(); return; }
+                boolean ok;
                 if (Build.VERSION.SDK_INT >= 33) {
-                    gatt.writeDescriptor(d, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                    ok = gatt.writeDescriptor(d, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == BluetoothGatt.GATT_SUCCESS;
                 } else {
                     d.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                    gatt.writeDescriptor(d);
+                    ok = gatt.writeDescriptor(d);
                 }
+                if (!ok) next();      // busy link (xDrip may share it): skip the subscription
             } catch (SecurityException e) { next(); }
         });
     }
 
     private void read(BluetoothGattCharacteristic c, String what) {
-        if (gatt == null || c == null) { post(() -> listener.onError("not connected (" + what + ")")); next(); return; }
+        if (gatt == null || c == null) { post(() -> listener.onError(ctx.getString(R.string.ble_not_connected_op, what))); next(); return; }
         try {
-            if (!gatt.readCharacteristic(c)) { post(() -> listener.onError("read " + what + " rejected")); next(); }
+            if (!gatt.readCharacteristic(c)) { post(() -> listener.onError(ctx.getString(R.string.ble_read_rejected, what))); stuck(); next(); }
         } catch (SecurityException e) { next(); }
+    }
+
+    /** Android keeps refusing operations once one of ours never got its callback: only a
+     *  fresh connection clears that state. */
+    private void stuck() {
+        if (++failures < 3 || lastDevice == null) return;
+        failures = 0;
+        post(() -> listener.onError(ctx.getString(R.string.ble_stuck)));
+        handler.postDelayed(() -> connect(lastDevice), 800);
     }
 
     @SuppressWarnings("deprecation")
     private void write(BluetoothGattCharacteristic c, byte[] data, String what) {
-        if (gatt == null || c == null) { post(() -> listener.onError("not connected (" + what + ")")); next(); return; }
+        if (gatt == null || c == null) { post(() -> listener.onError(ctx.getString(R.string.ble_not_connected_op, what))); next(); return; }
         try {
             boolean ok;
             if (Build.VERSION.SDK_INT >= 33) {
@@ -268,9 +303,12 @@ public class DeviceSetupClient {
                 c.setValue(data);
                 ok = gatt.writeCharacteristic(c);
             }
-            if (!ok) { post(() -> listener.onError("write " + what + " rejected")); next(); }
+            if (!ok) { post(() -> listener.onError(ctx.getString(R.string.ble_write_rejected, what))); stuck(); next(); }
         } catch (SecurityException e) { next(); }
     }
+
+    private static final long OP_TIMEOUT_MS = 6000;
+    private int opSerial = 0;
 
     private synchronized void enqueue(Runnable r) {
         ops.add(r);
@@ -279,6 +317,7 @@ public class DeviceSetupClient {
 
     private synchronized void next() {
         opInFlight = false;
+        opSerial++;
         runNext();
     }
 
@@ -286,7 +325,19 @@ public class DeviceSetupClient {
         Runnable r = ops.poll();
         if (r == null) return;
         opInFlight = true;
+        final int serial = opSerial;
         handler.post(r);
+        // an operation whose callback never comes (shared link busy, stack hiccup)
+        // must not block everything behind it
+        handler.postDelayed(() -> {
+            synchronized (this) {
+                if (opInFlight && serial == opSerial) {
+                    listener.onError(ctx.getString(R.string.ble_timeout));
+                    stuck();
+                    next();
+                }
+            }
+        }, OP_TIMEOUT_MS);
     }
 
     private void post(Runnable r) { handler.post(r); }

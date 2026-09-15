@@ -142,6 +142,16 @@ if ($NewBuild) {
 # chip into the bootloader; the esptool 4.x bundled with the core loses the port on
 # Windows, so the pip-installed esptool (5.x, `python -m esptool`) is preferred.
 if ($Port) {
+    # A configured board sleeps between readings and has no USB port while asleep; the
+    # compile above takes longer than the awake window of a PWR press. Wait for the port
+    # and flash the instant it shows up (cold boot or BOOT 3 s = 10 min, PWR = ~30 s).
+    if ([System.IO.Ports.SerialPort]::GetPortNames() -notcontains $Port) {
+        Write-Host ("Waiting for {0} (press PWR, hold BOOT 3 s, or plug the board in) ..." -f $Port) -ForegroundColor Yellow
+        $deadline = (Get-Date).AddMinutes(10)
+        while ((Get-Date) -lt $deadline -and ([System.IO.Ports.SerialPort]::GetPortNames() -notcontains $Port)) { Start-Sleep -Milliseconds 300 }
+        if ([System.IO.Ports.SerialPort]::GetPortNames() -notcontains $Port) { throw "$Port did not appear within 10 minutes." }
+        Start-Sleep -Milliseconds 800
+    }
     $bootApp0 = Join-Path $outDir 'boot_app0.bin'
     if (-not (Test-Path $bootApp0)) {
         $src = Get-ChildItem (Join-Path $env:ARDUINO_DIRECTORIES_DATA 'packages\esp32\hardware\esp32') -Recurse -Filter boot_app0.bin | Select-Object -First 1

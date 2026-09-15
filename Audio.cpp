@@ -99,6 +99,8 @@ static void toneTask(void *) {
 }
 
 bool Audio::begin() {
+  if (tried) return enabled;
+  tried = true;
   pinMode(PIN_PA_EN, OUTPUT);
   pinMode(PIN_PA_CTRL, OUTPUT);
   digitalWrite(PIN_PA_EN, LOW);        // audio power on
@@ -136,7 +138,8 @@ bool Audio::begin() {
 }
 
 void Audio::tone(uint16_t freq, uint32_t durationMs, uint8_t volume) {
-  if (!enabled || freq == 0 || durationMs == 0) return;
+  if (freq == 0 || durationMs == 0) return;
+  if (!enabled && !begin()) return;      // codec brought up on first use only
   s_vol = (uint8_t)map(volume > 100 ? 100 : volume, 0, 100, 0, 255);
   s_freq = freq;
   s_end = millis() + durationMs;
@@ -150,4 +153,8 @@ void Audio::mute() {
   s_playing = false;
   if (enabled) i2s_zero_dma_buffer(I2S_PORT);
   digitalWrite(PIN_PA_CTRL, LOW);
+}
+
+void Audio::powerDown() {
+  mute();                              // amplifier idle; the codec rail stays on (PowerCycle.cpp)
 }

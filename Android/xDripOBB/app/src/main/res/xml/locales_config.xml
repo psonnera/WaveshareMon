@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Languages the app ships; Android 13+ lists them under Settings › Apps › WaveShareMon › Language.
+     Add a line here for every new values-<lang>/strings.xml folder. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="fr" />
+    <locale android:name="it" />
+</locale-config>

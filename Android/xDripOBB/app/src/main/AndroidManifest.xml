@@ -11,12 +11,20 @@
     <!-- Legacy (API < 31) Bluetooth permissions -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+    <!-- Location: Bluetooth scanning on API < 31, and reading the phone's Wi-Fi network
+         name (SSID) on every API level, to prefill the device's Wi-Fi field. The app never
+         reads a position. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- "Test Nightscout": one GET to the site the user typed, from the phone -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
@@ -24,9 +32,19 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.XdripObb">
 
+        <!-- per-app language on Android 12 and older: AppCompat stores the choice itself -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data android:name="autoStoreLocales" android:value="true" />
+        </service>
+
+        <!-- home: device, data source, display, alarms, device settings -->
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
@@ -36,12 +54,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".setup.DeviceSetupActivity"
-            android:exported="false"
-            android:label="@string/title_device_setup"
-            android:parentActivityName=".ui.MainActivity" />
+        <activity android:name=".ui.ConnectionActivity" android:exported="false"
+            android:label="@string/title_connection" android:parentActivityName=".ui.MainActivity" />
+        <activity android:name=".ui.SourceActivity" android:exported="false"
+            android:label="@string/title_source" android:parentActivityName=".ui.MainActivity" />
+        <activity android:name=".ui.DisplayActivity" android:exported="false"
+            android:label="@string/title_display" android:parentActivityName=".ui.MainActivity" />
+        <activity android:name=".ui.AlarmsActivity" android:exported="false"
+            android:label="@string/title_alarms" android:parentActivityName=".ui.MainActivity" />
+        <activity android:name=".ui.DeviceActivity" android:exported="false"
+            android:label="@string/title_device" android:parentActivityName=".ui.MainActivity" />
+        <activity android:name=".ui.BridgeActivity" android:exported="false"
+            android:label="@string/title_bridge" android:parentActivityName=".ui.SourceActivity" />
 
         <!-- OBB GATT server; foreground service of type connectedDevice (API 34+) -->
         <service
@@ -49,13 +73,41 @@
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
 
-        <!-- xDrip local broadcast bridge (xDrip: Settings > Inter-app settings > Broadcast locally) -->
+        <!-- xDrip+ Broadcast Service API (explicit intents from xDrip to this package) -->
+        <receiver
+            android:name=".obb.XdripBroadcastServiceReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.eveningoutpost.dexdrip.watch.wearintegration.BROADCAST_SERVICE_SENDER" />
+            </intent-filter>
+        </receiver>
+
+        <!-- AndroidAPS data broadcast (Samsung Tizen sync plugin) -->
+        <receiver
+            android:name=".obb.AapsStatusReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="info.nightscout.androidaps.status" />
+            </intent-filter>
+        </receiver>
+
+        <!-- xDrip+ Compatible Broadcast (Settings > Inter-app settings > Broadcast locally) -->
         <receiver
             android:name=".obb.XdripBroadcastReceiver"
             android:exported="true"
             tools:ignore="ExportedReceiver">
             <intent-filter>
                 <action android:name="com.eveningoutpost.dexdrip.BgEstimate" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".obb.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
     </application>

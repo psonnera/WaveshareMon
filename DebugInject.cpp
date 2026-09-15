@@ -14,10 +14,14 @@ void powerOff();                   // WaveshareMon.ino
 #include "Alarms.h"
 #include "Battery.h"
 #include "BleObbClient.h"
+#include "BleMiBand.h"
 #include "BleSetupServer.h"
 #include "WifiService.h"
 #include "NightscoutClient.h"
+#include "DexcomShareClient.h"
+#include "LibreLinkUpClient.h"
 #include "EpdUi.h"
+#include "PowerCycle.h"
 #include "Log.h"
 #include <Arduino.h>
 #include <NimBLEDevice.h>
@@ -28,6 +32,9 @@ static void printCfg() {
   Serial.printf("[cfg] name=%s src=%u units=%u ssid=%s pass=%s url=%s token=%s tz=%s/%ld\n",
                 cfg.name(), cfg.source, cfg.units, cfg.wifiSsid, cfg.wifiPass[0] ? "***" : "",
                 cfg.nsUrl, cfg.nsToken[0] ? "***" : "", cfg.tzString, (long)cfg.tzOffsetSec);
+  Serial.printf("[cfg] dexcom user=%s pass=%s region=%u | libre user=%s pass=%s region='%s' ver=%s | tls=%u\n",
+                cfg.dxUser, cfg.dxPass[0] ? "***" : "", cfg.dxRegion, cfg.llUser,
+                cfg.llPass[0] ? "***" : "", cfg.llRegion, cfg.llVersion, cfg.tlsVerify);
   Serial.printf("[cfg] colours y%u-%u r%u-%u alarms en=%u w%u-%u a%u-%u noread=%u vol %u/%u rep=%u snooze=%u sline=%u\n",
                 cfg.yellowLow, cfg.yellowHigh, cfg.redLow, cfg.redHigh, cfg.alarmsEnabled,
                 cfg.warnLow, cfg.warnHigh, cfg.alarmLow, cfg.alarmHigh, cfg.noReadingsMin,
@@ -36,12 +43,20 @@ static void printCfg() {
 
 static bool setKey(const char *key, const char *val) {
   long n = atol(val);
-  if      (!strcmp(key, "src"))   cfg.source = n ? SRC_NIGHTSCOUT : SRC_OBB;
+  if      (!strcmp(key, "src"))   cfg.source = (n < 0 || n > SRC_MAX) ? SRC_OBB : (uint8_t)n;   // reboot to apply
   else if (!strcmp(key, "units")) cfg.units = n ? UNITS_MMOL : UNITS_MGDL;
   else if (!strcmp(key, "ssid"))  strlcpy(cfg.wifiSsid, val, sizeof(cfg.wifiSsid));
   else if (!strcmp(key, "pass"))  strlcpy(cfg.wifiPass, val, sizeof(cfg.wifiPass));
   else if (!strcmp(key, "url"))   strlcpy(cfg.nsUrl, val, sizeof(cfg.nsUrl));
   else if (!strcmp(key, "token")) strlcpy(cfg.nsToken, val, sizeof(cfg.nsToken));
+  else if (!strcmp(key, "dxuser")) { strlcpy(cfg.dxUser, val, sizeof(cfg.dxUser)); dxForgetSession(); }
+  else if (!strcmp(key, "dxpass")) { strlcpy(cfg.dxPass, val, sizeof(cfg.dxPass)); dxForgetSession(); }
+  else if (!strcmp(key, "dxreg"))  { cfg.dxRegion = (n < 0 || n > 2) ? 1 : (uint8_t)n; dxForgetSession(); }
+  else if (!strcmp(key, "lluser")) { strlcpy(cfg.llUser, val, sizeof(cfg.llUser)); llForgetSession(); }
+  else if (!strcmp(key, "llpass")) { strlcpy(cfg.llPass, val, sizeof(cfg.llPass)); llForgetSession(); }
+  else if (!strcmp(key, "llreg"))  { strlcpy(cfg.llRegion, val, sizeof(cfg.llRegion)); llForgetSession(); }
+  else if (!strcmp(key, "llver"))  strlcpy(cfg.llVersion, val, sizeof(cfg.llVersion));
+  else if (!strcmp(key, "tlsv"))   cfg.tlsVerify = n ? 1 : 0;
   else if (!strcmp(key, "tz"))    strlcpy(cfg.tzString, val, sizeof(cfg.tzString));
   else if (!strcmp(key, "name"))  strlcpy(cfg.deviceName, val, sizeof(cfg.deviceName));
   else if (!strcmp(key, "ylo"))   cfg.yellowLow = n;
@@ -62,9 +77,11 @@ static bool setKey(const char *key, const char *val) {
   else if (!strcmp(key, "dmy"))   cfg.dateFormatDMY = n ? 1 : 0;
   else if (!strcmp(key, "sline")) cfg.obbStatusLine = n ? 1 : 0;
   else if (!strcmp(key, "dbg"))   cfg.debugLog = n ? 1 : 0;
+  else if (!strcmp(key, "nosleep")) cfg.noSleep = n ? 1 : 0;      // stay in the always-on loop
   else if (!strcmp(key, "sc"))    cfg.bleSecureConn = n ? 1 : 0;   // takes effect after reboot
   else return false;
   cfg.save();
+  cfg.markConfigured();
   return true;
 }
 
@@ -112,10 +129,16 @@ void debugInjectPoll() {
                     obbStateName(), wifiStateName(), wifiIp(), nsLastError(),
                     setupServerAdvertising(), battery.percent(), battery.millivolts(),
                     alarms.label(), (unsigned)ESP.getFreeHeap());
-      int nb = NimBLEDevice::getNumBonds();
-      Serial.printf("[dbg] bonds=%d", nb);
-      for (int i = 0; i < nb; i++) { NimBLEAddress b = NimBLEDevice::getBondedAddress(i); Serial.printf(" %s/t%d", b.toString().c_str(), b.getType()); }
-      Serial.println();
+      Serial.printf("[dbg] wake=%s #%lu awake=%d nosleep=%u firstRun=%d status='%s' miband=%s key=%u dx='%s' llu='%s'\n",
+                    cycleWakeName(), (unsigned long)cycleWakes(), cycleAwake(), cfg.noSleep,
+                    cfg.firstRun, cycleStatusText(), miBandStateName(), cfg.mibandKeySet,
+                    dxStatus(), llStatus());
+      if (NimBLEDevice::isInitialized()) {
+        int nb = NimBLEDevice::getNumBonds();
+        Serial.printf("[dbg] bonds=%d", nb);
+        for (int i = 0; i < nb; i++) { NimBLEAddress b = NimBLEDevice::getBondedAddress(i); Serial.printf(" %s/t%d", b.toString().c_str(), b.getType()); }
+        Serial.println();
+      } else Serial.println("[dbg] ble off");
     } else if (strcmp(line, "cfg") == 0) {
       printCfg();
     } else if (strncmp(line, "set ", 4) == 0) {
@@ -141,6 +164,17 @@ void debugInjectPoll() {
       alarms.snooze();
     } else if (strcmp(line, "ns") == 0) {
       nsRequestNow();
+    } else if (strcmp(line, "wifiscan") == 0) {
+      wifiScanStart();       // the networks the radio sees (2.4 GHz), printed when done
+    } else if (strcmp(line, "dx") == 0) {
+      dxRequestNow();
+    } else if (strcmp(line, "llu") == 0) {
+      llRequestNow();
+    } else if (strcmp(line, "sleep") == 0) {
+      // end the awake period / radio window now and deep-sleep until the next reading
+      if (setupServerAdvertising()) setupServerAdvertise(false);
+      cfg.noSleep = 0;
+      cycleSleepNow();
     } else if (strcmp(line, "btn") == 0) {
       // watch both physical buttons for 20 s and log every edge, to map the
       // labels (PWR / BOOT) to GPIOs and find their idle / pressed levels
@@ -165,15 +199,31 @@ void debugInjectPoll() {
       delay(100);
       REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
       esp_restart();
+    } else if (strcmp(line, "rtc") == 0) {
+      time_t u = 0;
+      bool ok = timeService.readRtc(u);
+      Serial.printf("[dbg] rtc %s utc=%ld sys=%ld epd_pwr=%d\n", ok ? "ok" : "NOT READABLE",
+                    (long)u, (long)time(nullptr), digitalRead(PIN_EPD_PWR));
+    } else if (strcmp(line, "mbforget") == 0) {
+      miBandForgetKey();
+    } else if (strcmp(line, "unbond") == 0) {
+      // forget the phone without touching the configuration (re-pair afterwards)
+      if (NimBLEDevice::isInitialized()) { obbStop(); NimBLEDevice::deleteAllBonds(); }
+      Serial.println("[dbg] bonds deleted");
+      if (cfg.source == SRC_OBB) obbBegin();
     } else if (strcmp(line, "factory") == 0) {
       cfg.factoryReset();
-      NimBLEDevice::deleteAllBonds();
+      if (NimBLEDevice::isInitialized()) NimBLEDevice::deleteAllBonds();
       nvs_flash_deinit(); nvs_flash_erase();
       ESP.restart();
     } else if (strcmp(line, "log") == 0) {
-      for (int i = 0; logGet(i); i++) Serial.printf("  %s\n", logGet(i)->text);
+      for (int i = 0; logGet(i); i++) {
+        char stamp[16];
+        logStamp(logGet(i), stamp, sizeof(stamp));
+        Serial.printf("  %s %s\n", stamp, logGet(i)->text);
+      }
     } else if (line[0]) {
-      Serial.println("[dbg] commands: bg demo time status cfg set setup refresh warn alarm snooze ns log btn poweroff reboot dfu factory");
+      Serial.println("[dbg] commands: bg demo time status cfg set setup refresh warn alarm snooze ns dx llu sleep log btn rtc unbond mbforget poweroff reboot dfu factory");
     }
   }
 }

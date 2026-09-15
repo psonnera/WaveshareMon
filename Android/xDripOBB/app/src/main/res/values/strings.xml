@@ -1,27 +1,302 @@
-<resources>
-    <string name="app_name">WaveShareMon</string>
-    <string name="title_device_setup">WaveShareMon setup</string>
-    <string name="notif_channel">WaveShareMon broadcast</string>
-    <string name="notif_title">WaveShareMon broadcast running</string>
-    <string-array name="trend_names">
-        <item>Unknown</item>
-        <item>Double up ⇈</item>
-        <item>Single up ↑</item>
-        <item>Forty-five up ↗</item>
-        <item>Flat →</item>
-        <item>Forty-five down ↘</item>
-        <item>Single down ↓</item>
-        <item>Double down ⇊</item>
-        <item>Out of range</item>
-    </string-array>
-    <string-array name="alarm_names">
-        <item>All clear</item>
-        <item>Urgent low</item>
-        <item>Low</item>
-        <item>High</item>
-        <item>Urgent high</item>
-        <item>Missed readings</item>
-        <item>Sensor problem</item>
-        <item>Phone battery low</item>
-    </string-array>
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  strings.xml - English base text of the WaveShareMon app.
+  Every user-visible string lives here; translations go to values-<lang>/strings.xml
+  (see Android/xDripOBB/README.md, "Translations"). Keys marked translatable="false"
+  are product names, units or wire tokens and must stay as they are.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name" translatable="false">WaveShareMon</string>
+
+    <!-- ===== screen titles (manifest labels and home sections) ===== -->
+    <string name="title_connection">Connection</string>
+    <string name="title_source">Data source</string>
+    <string name="title_display">Display</string>
+    <string name="title_alarms">Alarms</string>
+    <string name="title_device">Device settings</string>
+    <string name="title_bridge">Bluetooth bridge</string>
+    <string name="section_device">Device</string>
+    <string name="section_commands">Commands</string>
+    <string name="section_device_info">Device info</string>
+    <string name="section_log">Log</string>
+
+    <!-- ===== home screen ===== -->
+    <string name="home_not_connected">Not connected</string>
+    <string name="home_not_connected_long">Not connected. Connect to pair and configure the device.</string>
+    <string name="home_scanning">Scanning…</string>
+    <string name="home_connected_state">Connected: %1$s</string>
+    <string name="home_connected_info">Connected: %1$s, firmware %2$s</string>
+    <string name="home_battery">, battery %1$d %%</string>
+    <string name="home_on_usb">, on USB</string>
+    <string name="home_woke">\nWoke by %1$s, up %2$d s</string>
+    <string name="home_status_page">\nThe device shows its status page until the first reading.</string>
+    <string name="home_connect_to_read">Connect to read.</string>
+    <string name="home_connect_source">Connect to read the current source.</string>
+    <string name="home_reading">Reading…</string>
+    <string name="home_device_reading">\nDevice: %1$d mg/dl, %2$d min ago</string>
+    <string name="home_bridge_on">\nBridge on</string>
+    <string name="home_bridge_off">\nBridge off</string>
+    <string name="home_bridge_reading">: %1$.0f mg/dl %2$s, %3$d min ago (%4$s)</string>
+    <string name="home_display_summary">%1$s, yellow %2$s-%3$s, red %4$s-%5$s, %6$s clock</string>
+    <string name="clock_24">24 h</string>
+    <string name="clock_12">12 h</string>
+    <string name="home_alarms_off">Off</string>
+    <string name="home_alarms_summary">On: warning %1$s-%2$s, alarm %3$s-%4$s, no readings %5$d min, snooze %6$d min</string>
+    <string name="home_default_name">Default name</string>
+    <string name="home_settings_summary">%1$s, time zone %2$s</string>
+    <string name="btn_connection">Connection</string>
+    <string name="btn_source">Data source and connection</string>
+    <string name="btn_display">Display settings</string>
+    <string name="btn_alarms">Alarm settings</string>
+    <string name="btn_device">Name, time zone, commands, log</string>
+    <string name="src_suffix_wifi"> (Wi-Fi)</string>
+    <string name="src_suffix_bt"> (Bluetooth)</string>
+
+    <!-- ===== connection page ===== -->
+    <string name="conn_intro">The device advertises for 10 minutes after it starts, permanently while unconfigured, or after holding its BOOT button for 3 seconds. Tap the device once it appears, then accept the phone\'s pairing prompt (Android may show two).</string>
+    <string name="btn_scan">Scan</string>
+    <string name="btn_disconnect">Disconnect</string>
+    <string name="btn_refresh">Refresh</string>
+    <string name="state_not_connected">not connected</string>
+    <string name="conn_info">%1$s  firmware %2$s</string>
+    <string name="conn_battery">  battery %1$d %%</string>
+    <string name="conn_on_usb">  on USB</string>
+    <string name="conn_address">\nBluetooth address %1$s</string>
+    <string name="conn_reading">\nReading %1$d mg/dl, %2$d min ago</string>
+    <string name="conn_reading_info">reading device info…</string>
+    <string name="perm_bluetooth">Bluetooth permissions are required</string>
+
+    <!-- ===== settings pages (shared) ===== -->
+    <string name="btn_save">Save to device</string>
+    <string name="page_not_connected">Not connected: values cannot be read or saved.</string>
+    <string name="nothing_changed">nothing changed</string>
+    <string name="hint_display">Units, the yellow and red bands of the value and the graph lines, and the clock format. Thresholds are converted when the unit changes.</string>
+    <string name="hint_alarms">The device sounds a warning or an alarm when a reading crosses these values, or when no reading arrived for a while. A short press of BOOT snoozes; the sounds repeat until the value is back in range.</string>
+    <string name="label_with_unit">%1$s (%2$s)</string>
+    <string name="hint_secret_stored">%1$s (stored, leave empty to keep)</string>
+    <string name="hint_secret_none">%1$s (none)</string>
+    <string name="unit_mgdl" translatable="false">mg/dl</string>
+    <string name="unit_mmol" translatable="false">mmol/l</string>
+
+    <!-- ===== data sources ===== -->
+    <string name="src_label_obb">xDrip / AAPS through this phone (Bluetooth)</string>
+    <string name="src_label_nightscout">Nightscout (Wi-Fi)</string>
+    <string name="src_label_miband">xDrip Mi Band (Bluetooth, no app needed)</string>
+    <string name="src_label_dexcom">Dexcom Share (Wi-Fi)</string>
+    <string name="src_label_libre">LibreLinkUp (Wi-Fi)</string>
+    <string name="src_short_obb">xDrip / AAPS via phone</string>
+    <string name="src_short_nightscout" translatable="false">Nightscout</string>
+    <string name="src_short_miband" translatable="false">xDrip Mi Band</string>
+    <string name="src_short_dexcom" translatable="false">Dexcom Share</string>
+    <string name="src_short_libre" translatable="false">LibreLinkUp</string>
+    <string name="hint_src_obb">This phone relays xDrip / AAPS readings to the device over Bluetooth (the bridge below must stay on). Pair the device from the bridge: Pairing mode, then accept the phone\'s prompts.</string>
+    <string name="hint_src_miband">xDrip\'s own Mi Band support pushes every reading straight to the device. In xDrip: Settings › Smart Watch Features › MiBand: Use MiBand Band ON, Mac address empty (auto search finds "MI Band 2"), Send Readings ON, then Update BG manually once.</string>
+    <string name="hint_src_nightscout">The device polls your Nightscout site over Wi-Fi every 5 minutes. Use a read-only access token.</string>
+    <string name="hint_src_dexcom">The device polls Dexcom Share with the sensor user\'s own account (not a follower\'s). At least one follower must be set up in the Dexcom app.</string>
+    <string name="hint_src_libre">The device polls LibreLinkUp with a follower account invited from the patient\'s LibreLink app. If the device shows "set ver X.Y.Z", enter that version here.</string>
+
+    <!-- ===== configuration fields (labels of the device's Config JSON keys) ===== -->
+    <string name="field_src">Data source</string>
+    <string name="field_ssid">Wi-Fi SSID</string>
+    <string name="field_pass">Wi-Fi password</string>
+    <string name="field_url">Nightscout URL</string>
+    <string name="field_token">Nightscout token</string>
+    <string name="field_dxuser">Dexcom account (email or phone)</string>
+    <string name="field_dxpass">Dexcom password</string>
+    <string name="field_dxreg">Dexcom region</string>
+    <string name="region_usa">USA</string>
+    <string name="region_outside_usa">Outside USA</string>
+    <string name="region_japan">Japan</string>
+    <string name="field_lluser">LibreLinkUp email</string>
+    <string name="field_llpass">LibreLinkUp password</string>
+    <string name="field_llreg">LibreLinkUp region (empty = auto, e.g. eu, us, de)</string>
+    <string name="field_llver">LibreLinkUp app version header</string>
+    <string name="field_tlsv">Verify TLS certificates</string>
+    <string name="field_sline">Show the IOB/COB status line from the phone</string>
+    <string name="field_units">Display units</string>
+    <string name="field_ylo">Yellow below</string>
+    <string name="field_yhi">Yellow above</string>
+    <string name="field_rlo">Red below</string>
+    <string name="field_rhi">Red above</string>
+    <string name="field_t24">24-hour clock</string>
+    <string name="field_dmy">Date as day.month</string>
+    <string name="field_aen">Alarms enabled</string>
+    <string name="field_wlo">Warning low</string>
+    <string name="field_alo">Alarm low</string>
+    <string name="field_whi">Warning high</string>
+    <string name="field_ahi">Alarm high</string>
+    <string name="field_nor">No readings warning (min)</string>
+    <string name="field_wvol">Warning volume (0-100)</string>
+    <string name="field_avol">Alarm volume (0-100)</string>
+    <string name="field_arep">Alarm repeat (min)</string>
+    <string name="field_snoz">Snooze (min)</string>
+    <string name="field_name">Device name</string>
+    <string name="field_tz">POSIX time zone</string>
+
+    <!-- ===== device commands ===== -->
+    <string name="cmd_refresh">Refresh display</string>
+    <string name="cmd_snooze">Snooze</string>
+    <string name="cmd_testwarn">Test warning</string>
+    <string name="cmd_testalarm">Test alarm</string>
+    <string name="cmd_setupoff">Setup mode off</string>
+    <string name="cmd_mbforget">Forget Mi Band key</string>
+    <string name="cmd_reboot">Reboot</string>
+    <string name="cmd_factory">Factory reset</string>
+    <string name="factory_message">Erases the configuration, the pairing and the Mi Band key. The device restarts in setup mode.</string>
+    <string name="factory_confirm">Reset</string>
+    <string name="device_reading">reading…</string>
+
+    <!-- ===== data source page: Mi Band and bridge cards ===== -->
+    <string name="source_not_connected">Not connected: the source can be chosen but not saved.</string>
+    <string name="miband_title" translatable="false">xDrip Mi Band</string>
+    <string name="miband_connect_hint">Connect to the device to see its Bluetooth address and pairing state.</string>
+    <string name="miband_info">Device address %1$s\nxDrip pairing: %2$s%3$s</string>
+    <string name="miband_key_stored"> (key stored)</string>
+    <string name="miband_key_none"> (no key yet)</string>
+    <string name="bridge_switch">Bluetooth bridge on this phone</string>
+    <string name="bridge_off">bridge off</string>
+    <string name="bridge_starting">bridge starting…</string>
+    <string name="bridge_latest">\nlatest %1$.0f mg/dl %2$s, %3$d min ago (%4$s)</string>
+    <string name="bridge_no_reading">\nno reading received yet</string>
+    <string name="btn_pairing">Pairing mode (60 s)</string>
+    <string name="pairing_open">open, %1$d s left</string>
+    <string name="pairing_closed">closed</string>
+    <string name="readings_from">Readings from</string>
+    <string name="in_xdrip_api">xDrip+ Broadcast Service API</string>
+    <string name="in_xdrip_api_hint">xDrip: Settings › Inter-app settings › Broadcast Service API</string>
+    <string name="in_aaps">AndroidAPS status broadcast</string>
+    <string name="in_aaps_hint">AAPS: Config Builder › Synchronization › Samsung Tizen</string>
+    <string name="in_xdrip_legacy">xDrip+ Compatible Broadcast (older API)</string>
+    <string name="in_xdrip_legacy_hint">xDrip: Settings › Inter-app settings › Broadcast locally (add com.psonnera.xdripobb if Identify receiver is set)</string>
+    <string name="fwd_alarms">Forward xDrip alerts to the device</string>
+    <string name="fwd_status_line">Forward the IOB / COB status line</string>
+    <string name="btn_bridge_details">Bridge details and log</string>
+    <string name="wifi_net_item">%1$s   %2$d dBm, ch %3$d%4$s</string>
+    <string name="wifi_net_open">, open</string>
+    <string name="ns_testing">Testing %1$s …</string>
+    <string name="ns_answers">Nightscout answers</string>
+    <string name="ns_failed">Nightscout test failed</string>
+    <string name="ns_no_readings">The site answers but has no readings.</string>
+    <string name="ns_ok">OK: %1$d mg/dl %2$s, %3$d min ago</string>
+    <string name="ns_http_auth">HTTP %1$d: the site refuses the request. Check the token (the site\'s API_SECRET does not work here; create a read-only token).</string>
+    <string name="ns_http_other">HTTP %1$d from %2$s</string>
+    <string name="ns_host_not_found">Host not found: %1$s. Check the address for typos.</string>
+    <string name="ns_tls_error">TLS error: %1$s</string>
+
+    <!-- ===== bridge page ===== -->
+    <string name="bridge_intro">For the OBB source: this phone relays xDrip / AAPS readings to the device over Bluetooth. It runs in the background; nothing here needs attention once the device is paired.</string>
+    <string name="bridge_server_switch">Bluetooth bridge (OBB server)</string>
+    <string name="bridge_not_bound">service not bound</string>
+    <string name="latest_none">latest: none yet</string>
+    <string name="latest_line">latest: %1$s (%2$d min ago, %3$s)</string>
+    <string name="bonded_devices">Bonded devices</string>
+    <string name="bonded_none">none</string>
+    <string name="bonded_connected_suffix">  [connected]</string>
+    <string name="btn_forget">Forget</string>
+    <string name="btn_ask_xdrip">Ask xDrip now</string>
+    <string name="bridge_asked">asked xDrip for its latest reading</string>
+
+    <!-- ===== bridge service: state, errors, notification ===== -->
+    <string name="notif_channel">WaveShareMon bridge</string>
+    <string name="notif_title">WaveShareMon bridge running</string>
+    <string name="notif_reading"> | %1$.0f mg/dl %2$d min ago (%3$s)</string>
+    <string name="bridge_bt_unavailable">Bluetooth not available</string>
+    <string name="bridge_advertising">advertising</string>
+    <string name="bridge_not_advertising">not advertising</string>
+    <string name="bridge_connected_count">, %1$d connected</string>
+    <string name="bridge_pairing_left">, pairing %1$d s</string>
+    <string name="err_no_adapter">no Bluetooth adapter on this device</string>
+    <string name="err_bt_off">Bluetooth is off</string>
+    <string name="err_perm_connect">BLUETOOTH_CONNECT permission missing</string>
+    <string name="err_perm_advertise">BLUETOOTH_ADVERTISE permission missing</string>
+    <string name="err_open_gatt">openGattServer: %1$s</string>
+    <string name="err_open_gatt_null">openGattServer returned null</string>
+    <string name="err_add_service">addService failed</string>
+    <string name="err_add_service_ex">addService: %1$s</string>
+    <string name="err_adv_failed">advertising failed: %1$s</string>
+    <string name="err_adv_unsupported">BLE advertising not supported by this device/emulator</string>
+    <string name="err_start_adv">startAdvertising: %1$s</string>
+
+    <!-- ===== setup link (device connection states and errors, shown as they happen) ===== -->
+    <string name="ble_scan_failed">scan failed: %1$d</string>
+    <string name="ble_off">Bluetooth off / unavailable</string>
+    <string name="ble_no_scanner">no BLE scanner</string>
+    <string name="ble_scanning">scanning</string>
+    <string name="ble_scan_error">scan: %1$s</string>
+    <string name="ble_connecting">connecting to %1$s</string>
+    <string name="ble_connect_error">connect: %1$s</string>
+    <string name="ble_connected_mtu">connected, requesting MTU</string>
+    <string name="ble_disconnected">disconnected (status %1$d)</string>
+    <string name="ble_discovering">MTU %1$d, discovering services</string>
+    <string name="ble_no_service">setup service not found on this device</string>
+    <string name="ble_ready">ready</string>
+    <string name="ble_write_failed">write %1$s failed, status %2$d%3$s</string>
+    <string name="ble_read_failed">read %1$s failed, status %2$d%3$s</string>
+    <string name="ble_auth_hint"> (insufficient authentication/encryption: accept the pairing request, then retry)</string>
+    <string name="ble_not_connected_op">not connected (%1$s)</string>
+    <string name="ble_read_rejected">read %1$s rejected</string>
+    <string name="ble_write_rejected">write %1$s rejected</string>
+    <string name="ble_stuck">link stuck, reconnecting</string>
+    <string name="ble_timeout">operation timed out, continuing</string>
+    <string name="log_wifi_scan_unavailable">Wi-Fi scan: device not connected or firmware too old</string>
+    <string name="log_config_read">config read</string>
+    <string name="log_wifi_scan_result">Wi-Fi scan: %1$d networks</string>
+    <string name="log_wifi_scan_none">Wi-Fi scan: no result</string>
+    <string name="log_written">%1$s written</string>
+    <string name="log_write_failed">%1$s FAILED</string>
+
+    <!-- ===== Wi-Fi helpers on the data source page ===== -->
+    <string name="wifi_use_phone_network">Phone\'s network</string>
+    <string name="wifi_scan_from_device">Device scan</string>
+    <string name="wifi_autofill_none">This phone is not on a Wi-Fi network right now.</string>
+    <string name="wifi_scan_title">Networks the device can see (2.4 GHz)</string>
+    <string name="wifi_scan_none">The device did not see any network. It only has a 2.4 GHz radio: check that your router\'s 2.4 GHz band is on.</string>
+    <string name="wifi_scan_busy">Scanning… (a few seconds)</string>
+    <string name="wifi_scan_unavailable">Connect to the device first (firmware 1.1.0 or newer).</string>
+    <string name="wifi_password_error">Password must be empty (open network) or 8–63 characters</string>
+    <string name="wifi_ssid_error">Enter the network name</string>
+    <string name="wifi_privacy_link">Why do we ask for this?</string>
+    <string name="ns_test">Test Nightscout</string>
+    <string name="ns_url_error">Enter the site address, e.g. https://mysite.example.com</string>
+
+    <!-- Prominent location disclosure, shown before the runtime permission request as
+         required by the Google Play User Data policy. -->
+    <string name="ssid_disclosure_title">Auto-fill your Wi-Fi network name?</string>
+    <string name="ssid_disclosure_body"><![CDATA[
+        This app can fill in the network name (SSID) field for you by reading which
+        Wi-Fi network this phone is connected to.
+        <br/><br/>
+        Android treats the name of your Wi-Fi network as <b>location data</b>, so this
+        app needs the <b>location permission</b> to read it. This app uses location
+        access <b>only</b> to read your current Wi-Fi network name and place it in the
+        network name field, so your WaveshareMon can join the same network. It never reads
+        your GPS position, never tracks you, and never sends your location or network
+        name over the internet. The network name is only written to your device over
+        Bluetooth.
+        <br/><br/>
+        This is optional. If you prefer, choose “No thanks” and type the network name
+        yourself, or let the device scan for networks.
+    ]]></string>
+    <string name="ssid_disclosure_accept">Allow auto-fill</string>
+    <string name="ssid_disclosure_decline">No thanks</string>
+    <string name="wifi_autofill_button">Auto-fill network name</string>
+    <string name="wifi_autofill_settings_toast">Location permission is turned off for this app. To use auto-fill, allow Location in the settings screen that just opened.</string>
+    <string name="wifi_privacy_title">About your Wi-Fi details</string>
+    <string name="wifi_privacy_body"><![CDATA[
+        <b>Network name (SSID):</b> to save you typing, this app can read the name of
+        the Wi-Fi network your phone is connected to. Android treats that name as
+        location data, so reading it needs the location permission. This app uses
+        location access only for this — it never reads your GPS position and never
+        tracks you. Auto-fill is optional; you can always type the name yourself or pick
+        it from the list the device scans.
+        <br/><br/>
+        <b>Password:</b> your Wi-Fi network name and password are written only to your
+        WaveshareMon, over the Bluetooth link between this phone and the device. They are
+        never uploaded, transmitted over the internet, logged, or stored anywhere by this
+        app.
+        <br/><br/>
+        <b>Test Nightscout:</b> this button contacts the Nightscout address you entered,
+        from this phone, to check that it answers with a reading before the device tries.
+        Nothing else is sent anywhere.
+    ]]></string>
 </resources>

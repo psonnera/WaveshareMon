@@ -8,25 +8,31 @@
 #define EPDUI_H
 
 #include <Arduino.h>
+#include <time.h>
 
 class EpdUi {
 public:
-  void begin();                   // panel init + splash
-  void tick();                    // decides when a refresh is due (main loop)
+  void begin(bool splash);        // splash on a cold boot; after deep sleep the panel is left alone
+  void tick();                    // decides when a refresh is due (awake loop only)
+  void flush();                   // end of a wake window: render now if anything changed
+  void powerDown();               // panel supply off before deep sleep
   void requestRedraw() { redrawPending = true; }
   bool busy() const { return rendering; }
 private:
+  bool due();                     // consumes the change flags
+  void ensureInit();              // panel supply + SPI + driver init, once per wake
   void render();                  // full-screen redraw (blocks ~20 s while the panel refreshes)
+  void drawStatusPage();          // shown until the configured source delivers a reading
   void drawHeader();
   void drawValue();
   void drawTrendRow();
   void drawGraph(int y0, int h);
-  void drawBottomBar();
+  bool drawSideText();            // info line beside the graph; false when it did not fit
+  void drawBottomBar(bool infoShown);
+  uint16_t bandFg = 0;            // text colour inside the highlight band (set by drawValue)
   volatile bool redrawPending = false;
   volatile bool rendering = false;
-  uint32_t lastRenderMs = 0;
-  int      lastAgeShown = -1;
-  bool     lastStale = false;
+  bool     inited = false;
 };
 
 extern EpdUi ui;

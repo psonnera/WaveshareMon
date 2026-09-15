@@ -4,12 +4,14 @@
 
   Copyright (C) 2026 Patrick Sonnerat
 */
+#include <esp_attr.h>
 #include "TimeService.h"
 #include "AppConfig.h"
 #include "Board.h"
 #include "Log.h"
 #include <Wire.h>
 #include <sys/time.h>
+#include <esp_sntp.h>
 
 TimeService timeService;
 
@@ -22,6 +24,8 @@ static time_t epochFromUtcTm(struct tm &t) {
   tzset();
   return epoch;
 }
+
+time_t TimeService::utcFromTm(struct tm &t) { return epochFromUtcTm(t); }
 
 // fixed offset as a POSIX string. POSIX sign is inverted (UTC+2 -> "LOC-2")
 // and newlib needs a >= 3 letter zone name or tzset() silently stays on UTC.
@@ -86,16 +90,26 @@ void TimeService::writeRtc(time_t utc) {
 
 void TimeService::begin() {
   applyTz();
-  // make sure the RTC runs (CONTROL_1: 12.5 pF, normal mode)
-  Wire.beginTransmission(I2C_ADDR_RTC);
-  Wire.write(0x00); Wire.write(0x00);
-  bool rtcOk = Wire.endTransmission() == 0;
+  // make sure the RTC runs (CONTROL_1: 12.5 pF, normal mode). Right after a
+  // reset the chip is sometimes not ready yet: retry briefly.
+  bool rtcOk = false;
+  for (int attempt = 0; attempt < 4 && !rtcOk; attempt++) {
+    if (attempt) delay(50);
+    Wire.beginTransmission(I2C_ADDR_RTC);
+    Wire.write(0x00); Wire.write(0x00);
+    rtcOk = Wire.endTransmission() == 0;
+  }
   time_t utc;
   if (rtcOk && readRtc(utc)) {
     struct timeval tv = { .tv_sec = utc, .tv_usec = 0 };
     settimeofday(&tv, nullptr);
     timeKnown = true;
     Serial.println("[time] restored from RTC");
+  } else if (time(nullptr) > 1600000000) {
+    // the ESP32 keeps the system clock across deep sleep and soft resets
+    timeKnown = true;
+    Serial.println(rtcOk ? "[time] RTC not set, kept by ESP32" : "[time] RTC not found, kept by ESP32");
+    if (rtcOk) writeRtc(time(nullptr));
   } else {
     Serial.println(rtcOk ? "[time] RTC not set" : "[time] RTC not found");
   }
@@ -128,8 +142,14 @@ void TimeService::setManual(int year, int month, int day, int hour, int minute, 
   setFromUtc(asIfUtc - cfg.tzOffsetSec);
 }
 
+// last successful NTP sync, kept across deep sleep: with the RTC keeping time
+// a sync twice a day is plenty and the wake windows stay short
+RTC_DATA_ATTR static int64_t s_lastNtpUtc = 0;
+
 void TimeService::startNtp() {
   if (ntpStarted) return;
+  time_t now = time(nullptr);
+  if (timeKnown && s_lastNtpUtc && difftime(now, (time_t)s_lastNtpUtc) < 12 * 3600) return;
   ntpStarted = true;
   ntpSynced = false;
   // TZ is handled by applyTz(); configTime would overwrite it, so use UTC here
@@ -140,12 +160,17 @@ void TimeService::startNtp() {
 void TimeService::tick() {
   if (!ntpStarted || ntpSynced) return;
   time_t now = time(nullptr);
-  if (now > 1600000000) {
+  if (now > 1600000000 && (!timeKnown || sntpSynced())) {
     ntpSynced = true;
     timeKnown = true;
     writeRtc(now);
+    s_lastNtpUtc = (int64_t)now;
     logAdd("time set by NTP");
   }
+}
+
+bool TimeService::sntpSynced() const {
+  return sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED;
 }
 
 bool TimeService::getLocalTm(struct tm &out) {

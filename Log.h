@@ -20,6 +20,8 @@ struct LogEntry {
 
 // newest-first access for the log page; idx 0 = latest. Returns nullptr past end.
 const LogEntry *logGet(int idx);
+// "HH:MM:SS" local time when the clock was known, else seconds since boot
+void logStamp(const LogEntry *e, char *out, size_t len);
 // total number of entries ever logged (monotonic; for incremental readers)
 uint32_t logTotal();
 // set when a new entry arrives; consumed by the UI

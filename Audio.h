@@ -11,14 +11,16 @@
 
 class Audio {
 public:
-  bool begin();                                  // Wire must already be started
+  bool begin();                                  // Wire must already be started; tone() calls it lazily
   // non-blocking; volume 0-100
   void tone(uint16_t freq, uint32_t durationMs, uint8_t volume);
   bool isPlaying() const;
   void mute();
+  void powerDown();                              // amplifier off before deep sleep
   bool available() const { return enabled; }
 private:
   bool enabled = false;
+  bool tried = false;
 };
 
 extern Audio audio;

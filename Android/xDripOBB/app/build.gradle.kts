@@ -10,8 +10,8 @@ android {
         applicationId = "com.psonnera.xdripobb"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     buildTypes {
@@ -28,6 +28,12 @@ android {
 
     buildFeatures {
         viewBinding = true
+    }
+
+    // languages shipped in the APK: English (base) plus every values-<lang> folder; keep
+    // this list and res/xml/locales_config.xml in step when adding a translation
+    androidResources {
+        localeFilters += listOf("en", "fr", "it")
     }
 }
 

@@ -3,10 +3,17 @@
 
   Shows the current glucose value, trend, delta and a 4-hour graph on the
   1.54" four-colour e-paper. Data comes either from xDrip over the Open
-  Bluetooth Broadcast protocol (BLE, phone = GATT server) or from Nightscout
-  over Wi-Fi. There are no navigation buttons: settings are written by the
-  companion Android app (Android/xDripOBB) over BLE, the BOOT button snoozes
-  alarms (short press) or toggles setup mode (long press).
+  Bluetooth Broadcast protocol (BLE, phone app = GATT server), from xDrip's
+  Mi Band support (BLE, the board poses as a Mi Band 2), or over Wi-Fi from
+  Nightscout, Dexcom Share or LibreLinkUp. There are no navigation buttons:
+  settings are written by the
+  companion Android app over BLE, the BOOT button snoozes alarms (short press)
+  or toggles setup mode (long press), the PWR button fetches now (short press)
+  or powers the device off (held 2 s).
+
+  A configured device deep-sleeps between readings (see PowerCycle.h); the
+  always-on loop runs after a cold boot, on the first (unconfigured) run, in
+  setup mode and with the "nosleep" debug flag.
 
   Copyright (C) 2026 Patrick Sonnerat
   Derived from M5Stack_xDripMon and M5_NightscoutMon (Martin Lukasek).
@@ -26,10 +33,14 @@
 #include "Battery.h"
 #include "TimeService.h"
 #include "BleObbClient.h"
+#include "BleMiBand.h"
 #include "BleSetupServer.h"
 #include "WifiService.h"
 #include "NightscoutClient.h"
+#include "DexcomShareClient.h"
+#include "LibreLinkUpClient.h"
 #include "EpdUi.h"
+#include "PowerCycle.h"
 #include "DebugInject.h"
 #include "Log.h"
 #include <Wire.h>
@@ -37,20 +48,46 @@
 #include <esp_log.h>
 #include <esp_task_wdt.h>
 #include <esp_sleep.h>
+#include <driver/gpio.h>
 
-// setup advertising stays on this long after boot (or a long press)
-#define SETUP_WINDOW_MS   (10UL * 60 * 1000)
 #define LONG_PRESS_MS     3000
 #define PWR_OFF_MS        2000                 // hold PWR this long to power off
 #define WDT_TIMEOUT_S     60                   // reboot if loop() stalls this long
 
-static uint32_t setupStartMs = 0;
-static bool     setupTimed = false;
+static bool s_bleUp = false;
+
+// Bluetooth is brought up only when the source needs it or the setup service
+// must be reachable; Wi-Fi sources otherwise leave the radio off entirely.
+static void bleBegin() {
+  if (s_bleUp) return;
+  s_bleUp = true;
+  // xDrip's Mi Band support reads the GAP device name and expects "MI Band 2"
+  NimBLEDevice::init(cfg.source == SRC_MIBAND ? "MI Band 2" : cfg.name());
+  NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+  if (cfg.source == SRC_MIBAND) {
+    // Phones cache the GATT table of a bonded address, and the OBB/setup-only
+    // table of the public address would hide the Mi Band services from xDrip.
+    // The Mi Band identity therefore gets its own stable static random
+    // address, derived from the public one.
+    uint8_t v[6];
+    memcpy(v, NimBLEDevice::getAddress().getBase()->val, 6);
+    v[5] |= 0xC0;                       // static random address marker
+    NimBLEDevice::setOwnAddr(v);
+    NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_RANDOM);
+  }
+  // Just Works bonding with an encrypted link, as required by the OBB spec
+  NimBLEDevice::setSecurityAuth(true /*bond*/, false /*mitm*/, cfg.bleSecureConn != 0 /*secure conn*/);
+  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+  NimBLEDevice::setMTU(517);
+  setupServerBegin();
+  if (cfg.source == SRC_OBB) obbBegin();
+  if (cfg.source == SRC_MIBAND) miBandBegin();
+}
 
 void enterSetupMode(bool timed) {   // also used by the serial "setup" command
-  setupStartMs = millis();
-  setupTimed = timed;
+  bleBegin();
   setupServerAdvertise(true);
+  if (timed) cycleStayAwake(SETUP_WINDOW_MS);
 }
 
 static void pollButton() {
@@ -67,26 +104,29 @@ static void pollButton() {
   }
   if (!down && wasDown && !longDone && now - downMs > 30) {
     alarms.snooze();
+    if (cfg.source == SRC_MIBAND) miBandSendSnooze();
   }
   wasDown = down;
 }
 
 // Power off: the e-paper keeps its image, so the screen does not change. Deep
-// sleep drops the CPU to a few uA (battery lasts months) and, more usefully,
-// releases the USB, so this is the "off" state. A PWR press wakes it: on
-// battery the hardware power path re-latches and it boots; on USB it wakes
-// through the ext0 source below. Nothing here forces the battery latch low, so
-// a wrong guess about that circuit cannot brick the device.
+// sleep drops the CPU to a few uA and releases the USB, so this is the "off"
+// state. Unlike the power-cycle sleep the battery latch is NOT held, so on
+// battery the board really powers down; a PWR press re-latches it and boots.
+// On USB it wakes through the ext0 source below.
 void powerOff() {
   logAdd("power off (PWR to wake)");
   Serial.println("[dbg] powering off - press PWR to wake");
   Serial.flush();
   delay(50);
+  ui.powerDown();
+  audio.powerDown();
+  gpio_deep_sleep_hold_dis();
   esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_PWR_BTN, 0);   // wake when PWR pulled low
   esp_deep_sleep_start();
 }
 
-// Hold PWR ~2 s to power off. A short press does nothing (avoids accidents).
+// Hold PWR ~2 s to power off. A short press only wakes the device (fetch now).
 static void pollPwrButton() {
   static bool     wasDown = false;
   static uint32_t downMs = 0;
@@ -98,9 +138,33 @@ static void pollPwrButton() {
   wasDown = down;
 }
 
+// A button press woke the chip: decide between a short and a long press
+// before the radios start, so the response is immediate.
+static void handleWakeButton() {
+  WakeKind k = cycleWakeKind();
+  if (k != WAKE_BUTTON_BOOT && k != WAKE_BUTTON_PWR) return;
+  int pin = k == WAKE_BUTTON_PWR ? PIN_PWR_BTN : PIN_BOOT_BTN;
+  uint32_t limit = k == WAKE_BUTTON_PWR ? PWR_OFF_MS : LONG_PRESS_MS;
+  uint32_t t0 = millis();
+  while (digitalRead(pin) == LOW && millis() - t0 < limit) delay(5);
+  bool held = digitalRead(pin) == LOW;
+  if (k == WAKE_BUTTON_PWR) {
+    if (held) powerOff();
+    logAdd("PWR: fetch now");                 // short press: a normal wake window follows
+  } else if (held) {
+    logAdd("BOOT held: setup mode");
+    enterSetupMode(true);
+    while (digitalRead(pin) == LOW) delay(5);
+  } else {
+    alarms.snooze();                          // short press
+  }
+}
+
 void setup() {
+  cycleBegin();                               // wake cause, power rails, GPIO holds
+  bool cold = cycleWakeKind() == WAKE_COLD;
   Serial.begin(115200);
-  delay(200);
+  if (cold) delay(200);
 #if CORE_DEBUG_LEVEL >= 4
   esp_log_level_set("*", ESP_LOG_DEBUG);          // NimBLE host / Wi-Fi traces (debug builds only)
 #endif
@@ -115,28 +179,25 @@ void setup() {
   esp_task_wdt_add(NULL);
 
   cfg.load();
+  // the USB serial re-enumerates after every wake; give the host a moment
+  // when someone is watching the console
+  if (!cold && cfg.debugLog) delay(1500);
   battery.begin();
   gs.restore();
+  alarms.restore();
   timeService.begin();
-  logAdd("boot v%s %s", WSMON_VERSION, cfg.name());
+  if (cold) logAdd("boot v%s %s", WSMON_VERSION, cfg.name());
+  else      logAdd("wake %lu (%s)", (unsigned long)cycleWakes(), cycleWakeName());
   if (cfg.firstRun) logAdd("no config: setup mode");
 
-  ui.begin();
-  audio.begin();
+  ui.begin(cold);                             // splash only on a cold boot
+  handleWakeButton();
 
-  NimBLEDevice::init(cfg.name());
-  NimBLEDevice::setPower(ESP_PWR_LVL_P9);
-  // Just Works bonding with an encrypted link, as required by the OBB spec
-  NimBLEDevice::setSecurityAuth(true /*bond*/, false /*mitm*/, cfg.bleSecureConn != 0 /*secure conn*/);
-  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
-  NimBLEDevice::setMTU(517);
-
-  setupServerBegin();
-  // unconfigured devices advertise permanently, configured ones for 10 min
-  enterSetupMode(!cfg.firstRun);
+  if (SRC_IS_BLE(cfg.source) || cycleAwake()) bleBegin();
+  // cold boot: setup advertising for 10 min (permanently while unconfigured)
+  if (cold) enterSetupMode(!cfg.firstRun);
 
   wifiBegin();
-  obbBegin();
 }
 
 void loop() {
@@ -148,19 +209,19 @@ void loop() {
   // one phone cannot hold a setup link and an OBB link at the same time
   obbSetPaused(setupServerClientConnected() || cfg.source != SRC_OBB);
   if (cfg.source == SRC_OBB) obbTick();
+  if (cfg.source == SRC_MIBAND) miBandTick();
 
   wifiTick();
   nsTick();
+  dxTick();
+  llTick();
   timeService.tick();
   battery.tick();
-  alarms.tick();
+  // sleeping modes evaluate the alarms once, after the fetch (PowerCycle)
+  if (cycleAwake()) alarms.tick();
   setupServerTick();
 
-  if (setupTimed && setupServerAdvertising() && !setupServerClientConnected() &&
-      millis() - setupStartMs > SETUP_WINDOW_MS) {
-    setupServerAdvertise(false);
-  }
-
+  cycleTick();                                // may deep-sleep and not return
   ui.tick();
   delay(10);
 }

@@ -10,20 +10,29 @@
 #include "Alarms.h"
 #include "Battery.h"
 #include "BleObbClient.h"
+#include "BleMiBand.h"
+#include "BleBonds.h"
 #include "WifiService.h"
+#include "DexcomShareClient.h"
+#include "LibreLinkUpClient.h"
 #include "TimeService.h"
 #include "EpdUi.h"
+#include "PowerCycle.h"
+void miBandOnConnect(uint16_t connHandle);     // BleMiBand.cpp
+void miBandOnDisconnect(uint16_t connHandle);
 #include "Log.h"
 #include "Version.h"
 #include <NimBLEDevice.h>
 #include <ArduinoJson.h>
 #include <nvs_flash.h>
+#include "nimble/nimble/host/services/gatt/include/services/gatt/ble_svc_gatt.h"
 
 static const NimBLEUUID UUID_SVC ("4d5f0001-2b8c-4a3e-9f61-7c2d9e8b5a10");
 static const NimBLEUUID UUID_INFO("4d5f0002-2b8c-4a3e-9f61-7c2d9e8b5a10");
 static const NimBLEUUID UUID_CFG ("4d5f0003-2b8c-4a3e-9f61-7c2d9e8b5a10");
 static const NimBLEUUID UUID_CMD ("4d5f0004-2b8c-4a3e-9f61-7c2d9e8b5a10");
 static const NimBLEUUID UUID_LOG ("4d5f0005-2b8c-4a3e-9f61-7c2d9e8b5a10");
+static const NimBLEUUID UUID_SCAN("4d5f0006-2b8c-4a3e-9f61-7c2d9e8b5a10");
 
 static NimBLEServer         *s_server = nullptr;
 static NimBLECharacteristic *s_info = nullptr;
@@ -33,7 +42,7 @@ static bool                  s_advertising = false;
 static volatile int          s_clients = 0;
 static volatile bool         s_logSubscribed = false;
 static uint32_t              s_logSent = 0;         // log entries already pushed (logTotal() based)
-static volatile uint8_t      s_pendingCmd = 0;      // 1 reboot, 2 factory, 3 warn, 4 alarm, 5 refresh, 6 snooze, 7 setupoff
+static volatile uint8_t      s_pendingCmd = 0;      // 1 reboot, 2 factory, 3 warn, 4 alarm, 5 refresh, 6 snooze, 7 setupoff, 8 mbforget, 9 wifiscan
 static volatile bool         s_cfgChanged = false;
 
 // ---- JSON builders ------------------------------------------------------------
@@ -45,12 +54,22 @@ static void buildInfo(std::string &out) {
   d["bat"] = battery.percent();
   d["mv"] = battery.millivolts();
   d["wifi"] = wifiStateName();
+  d["wifierr"] = wifiFailText();                        // why the last join failed ("" = it did not)
   d["ip"] = wifiIp();
   d["src"] = cfg.source;
   d["obb"] = obbStateName();
   d["bg"] = gs.hasData ? gs.mgdl : 0;
   d["age"] = gs.hasData ? gs.minutesAgo() : -1;
   d["uptime"] = (uint32_t)(millis() / 1000);
+  d["wakes"] = cycleWakes();
+  d["wake"] = cycleWakeName();
+  d["mac"] = NimBLEDevice::getAddress().toString();     // for xDrip's Mi Band MAC field
+  d["miband"] = miBandStateName();
+  d["mbkey"] = cfg.mibandKeySet != 0;
+  d["live"] = gs.live;                                  // false: the panel shows its status page
+  char st[48];
+  cycleSourceStatus(st, sizeof(st));
+  d["stat"] = st;
   serializeJson(d, out);
 }
 
@@ -64,6 +83,16 @@ static void buildConfig(std::string &out) {
   d["url"] = cfg.nsUrl;
   d["token"] = "";
   d["hastoken"] = cfg.nsToken[0] != 0;
+  d["dxuser"] = cfg.dxUser;
+  d["dxpass"] = "";
+  d["hasdxpass"] = cfg.dxPass[0] != 0;
+  d["dxreg"] = cfg.dxRegion;
+  d["lluser"] = cfg.llUser;
+  d["llpass"] = "";
+  d["hasllpass"] = cfg.llPass[0] != 0;
+  d["llreg"] = cfg.llRegion;
+  d["llver"] = cfg.llVersion;
+  d["tlsv"] = cfg.tlsVerify;
   d["tz"] = cfg.tzString;
   d["ylo"] = cfg.yellowLow;  d["yhi"] = cfg.yellowHigh;
   d["rlo"] = cfg.redLow;     d["rhi"] = cfg.redHigh;
@@ -97,12 +126,41 @@ static void getStr(JsonDocument &d, const char *key, char *field, size_t len) {
 static bool applyConfig(const char *json, size_t len) {
   JsonDocument d;
   if (deserializeJson(d, json, len)) { logAdd("config: bad JSON"); return false; }
-  getNum(d, "src", cfg.source, 0, 1);
+  uint8_t oldSrc = cfg.source;
+  getNum(d, "src", cfg.source, 0, SRC_MAX);
+  // a new source, or new credentials for the active one, must prove itself
+  // with a reading before the panel leaves its status page
+  bool sourceTouched = cfg.source != oldSrc ||
+      (SRC_IS_WIFI(cfg.source) && (d["ssid"].is<const char *>() || d["pass"].is<const char *>())) ||
+      (cfg.source == SRC_NIGHTSCOUT && (d["url"].is<const char *>() || d["token"].is<const char *>())) ||
+      (cfg.source == SRC_DEXCOM && (d["dxuser"].is<const char *>() || d["dxpass"].is<const char *>() || !d["dxreg"].isNull())) ||
+      (cfg.source == SRC_LIBRE && (d["lluser"].is<const char *>() || d["llpass"].is<const char *>() || d["llreg"].is<const char *>()));
+  if (sourceTouched) gs.markSourceChanged();
   getNum(d, "units", cfg.units, 0, 1);
+  // the phone's clock, for sources that never deliver the time (Mi Band)
+  if (d["now"].is<long long>()) {
+    long long now = d["now"].as<long long>();
+    if (now > 1600000000LL) timeService.setFromUtc((time_t)now);
+  }
   getStr(d, "ssid", cfg.wifiSsid, sizeof(cfg.wifiSsid));
   getStr(d, "pass", cfg.wifiPass, sizeof(cfg.wifiPass));
   getStr(d, "url", cfg.nsUrl, sizeof(cfg.nsUrl));
   getStr(d, "token", cfg.nsToken, sizeof(cfg.nsToken));
+  // cloud accounts: a changed login invalidates the cached session
+  char oldUser[65], oldPass[64]; uint8_t oldReg;
+  strlcpy(oldUser, cfg.dxUser, sizeof(oldUser)); strlcpy(oldPass, cfg.dxPass, sizeof(oldPass)); oldReg = cfg.dxRegion;
+  getStr(d, "dxuser", cfg.dxUser, sizeof(cfg.dxUser));
+  getStr(d, "dxpass", cfg.dxPass, sizeof(cfg.dxPass));
+  getNum(d, "dxreg", cfg.dxRegion, 0, 2);
+  if (strcmp(oldUser, cfg.dxUser) || strcmp(oldPass, cfg.dxPass) || oldReg != cfg.dxRegion) dxForgetSession();
+  char oldReg2[8];
+  strlcpy(oldUser, cfg.llUser, sizeof(oldUser)); strlcpy(oldPass, cfg.llPass, sizeof(oldPass)); strlcpy(oldReg2, cfg.llRegion, sizeof(oldReg2));
+  getStr(d, "lluser", cfg.llUser, sizeof(cfg.llUser));
+  getStr(d, "llpass", cfg.llPass, sizeof(cfg.llPass));
+  getStr(d, "llreg", cfg.llRegion, sizeof(cfg.llRegion));
+  getStr(d, "llver", cfg.llVersion, sizeof(cfg.llVersion));
+  if (strcmp(oldUser, cfg.llUser) || strcmp(oldPass, cfg.llPass) || strcmp(oldReg2, cfg.llRegion)) llForgetSession();
+  getNum(d, "tlsv", cfg.tlsVerify, 0, 1);
   getStr(d, "tz", cfg.tzString, sizeof(cfg.tzString));
   getNum(d, "ylo", cfg.yellowLow, 20, 600);  getNum(d, "yhi", cfg.yellowHigh, 20, 600);
   getNum(d, "rlo", cfg.redLow, 20, 600);     getNum(d, "rhi", cfg.redHigh, 20, 600);
@@ -123,27 +181,54 @@ static bool applyConfig(const char *json, size_t len) {
 
 // ---- callbacks (NimBLE host task) ---------------------------------------------
 
+// advertising wanted: setup mode, or the Mi Band source waiting for xDrip
+static bool wantAdvertising() {
+  return s_advertising || cfg.source == SRC_MIBAND;
+}
+
+// the setup app talked to us: keep the power cycle from sleeping for a while
+#define APP_HOLD_MS 60000UL
+
+static uint16_t s_repersistHandle = BLE_HS_CONN_HANDLE_NONE;
+static uint32_t s_repersistAtMs = 0;
+
 class ServerCb : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer *, NimBLEConnInfo &info) override {
     s_clients++;
-    logAdd("setup app connected");
+    logAdd("BLE client connected");
+    // Android keeps a bonded peer's GATT table cached across connections; the
+    // table here depends on the configured source (Mi Band services or not),
+    // so tell subscribed bonded clients to discover again.
+    ble_svc_gatt_changed(0x0001, 0xffff);
+    miBandOnConnect(info.getConnHandle());
   }
-  void onDisconnect(NimBLEServer *, NimBLEConnInfo &, int) override {
+  void onAuthenticationComplete(NimBLEConnInfo &info) override {
+    // the phone's keys arrive after this event; rewrite the stored bond a
+    // little later from the loop (see BleBonds.h)
+    if (info.isEncrypted() && info.isBonded()) {
+      s_repersistHandle = info.getConnHandle();
+      s_repersistAtMs = millis() + 3000;
+    }
+  }
+  void onDisconnect(NimBLEServer *, NimBLEConnInfo &info, int) override {
     if (s_clients > 0) s_clients--;
     s_logSubscribed = false;
-    logAdd("setup app disconnected");
-    if (s_advertising) NimBLEDevice::startAdvertising();
+    logAdd("BLE client disconnected");
+    miBandOnDisconnect(info.getConnHandle());
+    if (wantAdvertising()) NimBLEDevice::startAdvertising();
   }
 } s_serverCb;
 
 class InfoCb : public NimBLECharacteristicCallbacks {
   void onRead(NimBLECharacteristic *c, NimBLEConnInfo &) override {
+    cycleStayAwake(APP_HOLD_MS);
     std::string s; buildInfo(s); c->setValue(s);
   }
 } s_infoCb;
 
 class CfgCb : public NimBLECharacteristicCallbacks {
   void onRead(NimBLECharacteristic *c, NimBLEConnInfo &) override {
+    cycleStayAwake(APP_HOLD_MS);
     std::string s; buildConfig(s); c->setValue(s);
   }
   void onWrite(NimBLECharacteristic *c, NimBLEConnInfo &) override {
@@ -159,6 +244,7 @@ class CmdCb : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic *c, NimBLEConnInfo &) override {
     std::string s = c->getValue();
     logAdd("cmd: %s", s.c_str());
+    cycleStayAwake(APP_HOLD_MS);
     if      (s == "reboot")    s_pendingCmd = 1;
     else if (s == "factory")   s_pendingCmd = 2;
     else if (s == "testwarn")  s_pendingCmd = 3;
@@ -166,11 +252,25 @@ class CmdCb : public NimBLECharacteristicCallbacks {
     else if (s == "refresh")   s_pendingCmd = 5;
     else if (s == "snooze")    s_pendingCmd = 6;
     else if (s == "setupoff")  s_pendingCmd = 7;
+    else if (s == "mbforget")  s_pendingCmd = 8;
+    else if (s == "wifiscan")  s_pendingCmd = 9;
   }
 } s_cmdCb;
 
+class WifiScanCb : public NimBLECharacteristicCallbacks {
+  void onRead(NimBLECharacteristic *c, NimBLEConnInfo &) override {
+    cycleStayAwake(APP_HOLD_MS);
+    char json[512];
+    wifiScanJson(json, sizeof(json));
+    std::string s(json);
+    c->setValue(s);
+    logDebug("scan read: %u bytes", (unsigned)s.size());
+  }
+} s_wifiScanCb;
+
 class LogCb : public NimBLECharacteristicCallbacks {
   void onSubscribe(NimBLECharacteristic *, NimBLEConnInfo &, uint16_t subValue) override {
+    cycleStayAwake(APP_HOLD_MS);
     s_logSubscribed = subValue != 0;
     s_logSent = 0;            // replay the whole buffer to a new subscriber
   }
@@ -183,7 +283,7 @@ void setupServerBegin() {
   s_server->setCallbacks(&s_serverCb);
   s_server->advertiseOnDisconnect(false);
   NimBLEService *svc = s_server->createService(UUID_SVC);
-  s_info = svc->createCharacteristic(UUID_INFO, NIMBLE_PROPERTY::READ, 256);
+  s_info = svc->createCharacteristic(UUID_INFO, NIMBLE_PROPERTY::READ, 512);
   s_info->setCallbacks(&s_infoCb);
   s_cfg = svc->createCharacteristic(UUID_CFG,
             NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE |
@@ -194,16 +294,22 @@ void setupServerBegin() {
   cmd->setCallbacks(&s_cmdCb);
   s_log = svc->createCharacteristic(UUID_LOG, NIMBLE_PROPERTY::NOTIFY, 64);
   s_log->setCallbacks(&s_logCb);
+  NimBLECharacteristic *scan = svc->createCharacteristic(UUID_SCAN, NIMBLE_PROPERTY::READ, 512);
+  scan->setCallbacks(&s_wifiScanCb);
+  scan->setValue(std::string("{\"scan\":\"idle\"}"));
   svc->start();
 
   // 128-bit service UUID in the advertisement, name in the scan response
-  // (both do not fit in the 31-byte advertising packet)
+  // (both do not fit in the 31-byte advertising packet). In Mi Band mode the
+  // Huami service UUID (16-bit) and the name "MI Band 2" are what xDrip looks
+  // for; the setup UUID stays in so the app can still find the device.
   NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
   NimBLEAdvertisementData advData;
   advData.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+  if (cfg.source == SRC_MIBAND) advData.addServiceUUID(NimBLEUUID((uint16_t)0xFEE0));
   advData.addServiceUUID(UUID_SVC);
   NimBLEAdvertisementData scanData;
-  scanData.setName(cfg.name());
+  scanData.setName(cfg.source == SRC_MIBAND ? "MI Band 2" : cfg.name());
   adv->setAdvertisementData(advData);
   adv->setScanResponseData(scanData);
 }
@@ -215,7 +321,7 @@ void setupServerAdvertise(bool on) {
     NimBLEDevice::startAdvertising();
     logAdd("setup mode: %s", cfg.name());
   } else {
-    NimBLEDevice::stopAdvertising();
+    if (!wantAdvertising()) NimBLEDevice::stopAdvertising();
     logAdd("setup mode off");
   }
   ui.requestRedraw();
@@ -225,10 +331,16 @@ bool setupServerAdvertising() { return s_advertising; }
 bool setupServerClientConnected() { return s_clients > 0; }
 
 void setupServerTick() {
+  if (s_repersistHandle != BLE_HS_CONN_HANDLE_NONE && (int32_t)(millis() - s_repersistAtMs) >= 0) {
+    uint16_t h = s_repersistHandle;
+    s_repersistHandle = BLE_HS_CONN_HANDLE_NONE;
+    NimBLEConnInfo ci = s_server->getPeerInfoByHandle(h);
+    if (ci.getConnHandle() == h) bleRepersistBond(ci.getIdAddress());
+  }
   // the controller refuses to (re)start advertising while a central connection
   // is being established (rc 519): keep retrying while setup mode is wanted
   static uint32_t lastAdvRetryMs = 0;
-  if (s_advertising && s_clients == 0 && !NimBLEDevice::getAdvertising()->isAdvertising() &&
+  if (wantAdvertising() && s_clients == 0 && !NimBLEDevice::getAdvertising()->isAdvertising() &&
       millis() - lastAdvRetryMs > 3000) {
     lastAdvRetryMs = millis();
     NimBLEDevice::startAdvertising();
@@ -243,8 +355,9 @@ void setupServerTick() {
       const LogEntry *e = logGet((int)(total - 1 - s_logSent));   // oldest unsent first
       s_logSent++;
       if (!e) continue;
-      char line[LOG_LINE_LEN + 12];
-      snprintf(line, sizeof(line), "%6lus %s", (unsigned long)(e->ms / 1000), e->text);
+      char line[LOG_LINE_LEN + 16], stamp[16];
+      logStamp(e, stamp, sizeof(stamp));
+      snprintf(line, sizeof(line), "%s %s", stamp, e->text);
       s_log->setValue((uint8_t *)line, strlen(line));
       s_log->notify();
       delay(5);
@@ -253,6 +366,8 @@ void setupServerTick() {
 
   if (s_cfgChanged) {
     s_cfgChanged = false;
+    cfg.markConfigured();                 // the power cycle may start once setup ends
+    cycleStayAwake(SETUP_WINDOW_MS);      // give the app time for more changes
     timeService.applyTz();
     wifiApplyConfig();
     ui.requestRedraw();
@@ -274,5 +389,13 @@ void setupServerTick() {
     case 5: ui.requestRedraw(); break;
     case 6: alarms.snooze(); break;
     case 7: setupServerAdvertise(false); break;
+    case 8: miBandForgetKey(); break;
+    case 9: wifiScanStart(); break;
   }
+}
+
+void setupServerDropClients() {
+  if (!s_server || s_clients == 0) return;
+  for (auto h : s_server->getPeerDevices()) s_server->disconnect(h);
+  delay(50);
 }

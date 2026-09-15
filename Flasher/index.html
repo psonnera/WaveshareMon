@@ -69,11 +69,14 @@
     <h3>After flashing</h3>
     <ul>
       <li>The device advertises as <b>WaveshareMon-XXXX</b> for 10 minutes after every start (and
-          permanently until it has been configured). Open the <b>xDrip OBB</b> Android app →
-          <b>Device setup</b> to choose the data source (xDrip over Bluetooth or Nightscout over Wi-Fi)
-          and enter your settings.</li>
-      <li>For xDrip: turn on the OBB server in the app (or in xDrip once integrated), open the
-          <b>pairing window</b>, and the device connects and bonds by itself.</li>
+          permanently until it has been configured). Open the <b>WaveShareMon</b> Android app,
+          tap <b>Scan</b>, pick the device, accept the pairing prompts, choose the data source and
+          <b>Write</b>.</li>
+      <li>Sources: xDrip / AAPS through the phone (Bluetooth), xDrip Mi Band (Bluetooth, no app
+          needed afterwards), Nightscout, Dexcom Share or LibreLinkUp (Wi-Fi).</li>
+      <li>Once configured the device sleeps between readings and wakes every 5 minutes. Its USB
+          port is gone while it sleeps: press <b>PWR</b> (wakes it) or hold <b>BOOT</b> for 3 s
+          (setup mode, 10 minutes awake) before flashing again.</li>
     </ul>
   </div>
 

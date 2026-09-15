@@ -23,10 +23,14 @@ public:
   bool getLocalTm(struct tm &out);                // false if time unknown
   // "HH:MM" per cfg.timeFormat24, "" if unknown
   void formatTime(time_t t, char *out, size_t len);
+  // serial diagnostics: is the PCF85063 answering, and what does it hold
+  bool readRtc(time_t &utc);
+  // interpret tm fields as UTC and return the epoch (independent of the TZ setting)
+  static time_t utcFromTm(struct tm &t);
 
 private:
   void writeRtc(time_t utc);
-  bool readRtc(time_t &utc);
+  bool sntpSynced() const;
   bool timeKnown = false;
   bool ntpStarted = false;
   bool ntpSynced = false;

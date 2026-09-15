@@ -52,15 +52,28 @@ void AppConfig::load() {
     timeFormat24   = p.getUChar("tfmt", timeFormat24);
     dateFormatDMY  = p.getUChar("dfmt", dateFormatDMY);
     debugLog       = p.getUChar("dbg", debugLog);
+    noSleep        = p.getUChar("nosleep", noSleep);
     tzOffsetSec    = p.getInt("tzof", tzOffsetSec);
     p.getString("tzstr", tzString, sizeof(tzString));
     p.getString("ssid", wifiSsid, sizeof(wifiSsid));
     p.getString("pass", wifiPass, sizeof(wifiPass));
     p.getString("nsurl", nsUrl, sizeof(nsUrl));
     p.getString("nstok", nsToken, sizeof(nsToken));
+    p.getString("dxusr", dxUser, sizeof(dxUser));
+    p.getString("dxpwd", dxPass, sizeof(dxPass));
+    dxRegion       = p.getUChar("dxreg", dxRegion);
+    p.getString("llusr", llUser, sizeof(llUser));
+    p.getString("llpwd", llPass, sizeof(llPass));
+    p.getString("llreg", llRegion, sizeof(llRegion));
+    p.getString("llver", llVersion, sizeof(llVersion));
+    if (!llVersion[0]) strlcpy(llVersion, "4.16.0", sizeof(llVersion));
+    tlsVerify      = p.getUChar("tlsv", tlsVerify);
     obbStatusLine  = p.getUChar("sline", obbStatusLine);
     bleSecureConn  = p.getUChar("blesc", bleSecureConn);
     p.getString("name", deviceName, sizeof(deviceName));
+    mibandKeySet   = p.getUChar("mbset", 0);
+    if (p.getBytesLength("mbkey") == sizeof(mibandKey)) p.getBytes("mbkey", mibandKey, sizeof(mibandKey));
+    else mibandKeySet = 0;
   }
   p.end();
 }
@@ -95,6 +108,7 @@ void AppConfig::save() {
   chk(p.putUChar("tfmt", timeFormat24));
   chk(p.putUChar("dfmt", dateFormatDMY));
   chk(p.putUChar("dbg", debugLog));
+  chk(p.putUChar("nosleep", noSleep));
   chk(p.putInt("tzof", tzOffsetSec));
   chk(p.putUChar("sline", obbStatusLine));
   chk(p.putUChar("blesc", bleSecureConn));
@@ -103,7 +117,17 @@ void AppConfig::save() {
   putStr(p, "pass", wifiPass);
   putStr(p, "nsurl", nsUrl);
   putStr(p, "nstok", nsToken);
+  putStr(p, "dxusr", dxUser);
+  putStr(p, "dxpwd", dxPass);
+  chk(p.putUChar("dxreg", dxRegion));
+  putStr(p, "llusr", llUser);
+  putStr(p, "llpwd", llPass);
+  putStr(p, "llreg", llRegion);
+  putStr(p, "llver", llVersion);
+  chk(p.putUChar("tlsv", tlsVerify));
   putStr(p, "name", deviceName);
+  chk(p.putUChar("mbset", mibandKeySet));
+  if (mibandKeySet) chk(p.putBytes("mbkey", mibandKey, sizeof(mibandKey))); else p.remove("mbkey");
   p.end();
   if (failed)
     logAdd("config save FAILED (%d keys)", failed);
@@ -119,3 +143,6 @@ void AppConfig::factoryReset() {
   *this = AppConfig{};
   firstRun = true;
 }
+
+// after the first configuration write: the device is set up, the power cycle may start
+void AppConfig::markConfigured() { firstRun = false; }

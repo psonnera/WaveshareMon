@@ -1,10 +1,11 @@
 /*
- * XdripBroadcastReceiver.java - bridge from xDrip's local broadcast to the OBB server
- * Part of xDrip OBB (GPL v3). Copyright (C) 2026 Patrick Sonnerat
+ * XdripBroadcastReceiver.java - xDrip's legacy "Compatible Broadcast" (BgEstimate) input
+ * Part of WaveShareMon (GPL v3). Copyright (C) 2026 Patrick Sonnerat
  *
  * xDrip: Settings > Inter-app settings > Broadcast locally = ON, and (if "Identify receiver"
  * is used) add the package name com.psonnera.xdripobb. Intent and extras from xDrip's
- * utilitymodels/Intents.java.
+ * utilitymodels/Intents.java. Kept as a fallback next to the Broadcast Service API; the
+ * service de-duplicates readings that arrive through both.
  */
 package com.psonnera.xdripobb.obb;
 
@@ -19,7 +20,6 @@ public class XdripBroadcastReceiver extends BroadcastReceiver {
     public static final String EXTRA_BG_SLOPE = "com.eveningoutpost.dexdrip.Extras.BgSlope";
     public static final String EXTRA_BG_SLOPE_NAME = "com.eveningoutpost.dexdrip.Extras.BgSlopeName";
     public static final String EXTRA_TIMESTAMP = "com.eveningoutpost.dexdrip.Extras.Time";
-    public static final String EXTRA_RAW = "com.eveningoutpost.dexdrip.Extras.Raw";
 
     private static double lastMgdl = Double.NaN;
     private static long lastTs = 0;
@@ -28,7 +28,7 @@ public class XdripBroadcastReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (intent == null || !ACTION_NEW_BG_ESTIMATE.equals(intent.getAction())) return;
         ObbPrefs prefs = new ObbPrefs(context);
-        if (prefs.source() != ObbPrefs.SOURCE_XDRIP_BRIDGE) return;
+        if (!prefs.xdripLegacyEnabled()) return;
 
         double mgdl = intent.getDoubleExtra(EXTRA_BG_ESTIMATE, Double.NaN);
         double slope = intent.getDoubleExtra(EXTRA_BG_SLOPE, Double.NaN);
@@ -51,7 +51,8 @@ public class XdripBroadcastReceiver extends BroadcastReceiver {
                 .putExtra(OpenBroadcastService.EXTRA_DELTA, delta)
                 .putExtra(OpenBroadcastService.EXTRA_TREND, trend)
                 .putExtra(OpenBroadcastService.EXTRA_TIMESTAMP, ts)
-                .putExtra(OpenBroadcastService.EXTRA_FLAGS, 0);
+                .putExtra(OpenBroadcastService.EXTRA_FLAGS, 0)
+                .putExtra(OpenBroadcastService.EXTRA_SOURCE_NAME, "xDrip broadcast");
         try {
             context.startForegroundService(svc);
         } catch (Exception e) {

@@ -1,319 +1,168 @@
 /*
- * MainActivity.java - test/reference UI for the OBB server
- * Part of xDrip OBB (GPL v3). Copyright (C) 2026 Patrick Sonnerat
+ * MainActivity.java - home screen: one section per topic, each with a summary and a page button
+ * Part of WaveShareMon (GPL v3). Copyright (C) 2026 Patrick Sonnerat
  */
 package com.psonnera.xdripobb.ui;
 
-import android.Manifest;
-import android.bluetooth.BluetoothDevice;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.text.TextUtils;
-import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.psonnera.xdripobb.databinding.ActivityMainBinding;
+import com.psonnera.xdripobb.R;
+import com.psonnera.xdripobb.databinding.ActivityHomeBinding;
 import com.psonnera.xdripobb.obb.ObbPrefs;
-import com.psonnera.xdripobb.obb.ObbProtocol;
 import com.psonnera.xdripobb.obb.ObbReading;
 import com.psonnera.xdripobb.obb.OpenBroadcastService;
-import com.psonnera.xdripobb.setup.DeviceSetupActivity;
+import com.psonnera.xdripobb.setup.ConfigFields;
+import com.psonnera.xdripobb.setup.DeviceSession;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.json.JSONObject;
+
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity implements OpenBroadcastService.Listener {
-    private static final int REQ_PERMS = 1;
-
-    private ActivityMainBinding b;
-    private ObbPrefs prefs;
-    private OpenBroadcastService service;
+public class MainActivity extends AppCompatActivity implements DeviceSession.Listener {
+    private ActivityHomeBinding b;
+    private DeviceSession session;
+    private OpenBroadcastService bridge;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final List<String> log = new ArrayList<>();
-    private boolean updatingUi = false;
 
     private final ServiceConnection conn = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder binder) {
-            service = ((OpenBroadcastService.LocalBinder) binder).getService();
-            service.addListener(MainActivity.this);
-            log.clear();
-            log.addAll(service.getLog());
-            renderLog();
-            refreshState();
+        @Override public void onServiceConnected(ComponentName name, IBinder binder) {
+            bridge = ((OpenBroadcastService.LocalBinder) binder).getService();
+            refresh();
         }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) { service = null; }
+        @Override public void onServiceDisconnected(ComponentName name) { bridge = null; }
     };
 
     private final Runnable ticker = new Runnable() {
-        @Override
-        public void run() {
-            refreshState();
-            handler.postDelayed(this, 1000);
-        }
+        @Override public void run() { refresh(); handler.postDelayed(this, 1000); }
     };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        b = ActivityMainBinding.inflate(getLayoutInflater());
+        b = ActivityHomeBinding.inflate(getLayoutInflater());
         setContentView(b.getRoot());
-        prefs = new ObbPrefs(this);
+        session = DeviceSession.get(this);
 
-        b.spTrend.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-                getResources().getStringArray(com.psonnera.xdripobb.R.array.trend_names)));
-        b.spTrend.setSelection(ObbProtocol.TREND_FLAT);
-        b.spAlarm.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-                getResources().getStringArray(com.psonnera.xdripobb.R.array.alarm_names)));
+        b.btnConnection.setOnClickListener(v -> startActivity(new Intent(this, ConnectionActivity.class)));
+        b.btnSource.setOnClickListener(v -> startActivity(new Intent(this, SourceActivity.class)));
+        b.btnDisplay.setOnClickListener(v -> startActivity(new Intent(this, DisplayActivity.class)));
+        b.btnAlarms.setOnClickListener(v -> startActivity(new Intent(this, AlarmsActivity.class)));
+        b.btnDevice.setOnClickListener(v -> startActivity(new Intent(this, DeviceActivity.class)));
 
-        // restore prefs into the UI
-        updatingUi = true;
-        b.swServer.setChecked(prefs.serverEnabled());
-        b.swMmol.setChecked(prefs.useMmol());
-        b.swAlarms.setChecked(prefs.broadcastAlarms());
-        b.swStatusLine.setChecked(prefs.statusLineEnabled());
-        b.etStatusLine.setText(prefs.statusLine());
-        b.etSimInterval.setText(String.valueOf(prefs.simIntervalSec()));
-        switch (prefs.source()) {
-            case ObbPrefs.SOURCE_SIMULATOR: b.rbSim.setChecked(true); break;
-            case ObbPrefs.SOURCE_XDRIP_BRIDGE: b.rbBridge.setChecked(true); break;
-            default: b.rbManual.setChecked(true);
-        }
-        updatingUi = false;
-
-        b.swServer.setOnCheckedChangeListener((v, on) -> {
-            if (updatingUi) return;
-            if (on && !ensurePermissions()) { b.swServer.setChecked(false); return; }
-            prefs.setServerEnabled(on);
-            startService();
-            if (service != null) service.enableServer(on);
-        });
-        b.btnPairing.setOnClickListener(v -> { if (service != null) service.startPairingWindow(); });
-        b.rgSource.setOnCheckedChangeListener((g, id) -> {
-            if (updatingUi) return;
-            int src = id == b.rbSim.getId() ? ObbPrefs.SOURCE_SIMULATOR
-                    : id == b.rbBridge.getId() ? ObbPrefs.SOURCE_XDRIP_BRIDGE : ObbPrefs.SOURCE_MANUAL;
-            prefs.setSource(src);
-            prefs.setSimIntervalSec(parseInt(b.etSimInterval.getText().toString(), 300));
-            startService();
-            if (service != null) service.applySource();
-        });
-        b.btnSimFast.setOnClickListener(v -> {
-            b.etSimInterval.setText("10");
-            prefs.setSimIntervalSec(10);
-            if (service != null) service.applySource();
-        });
-        b.swMmol.setOnCheckedChangeListener((v, on) -> {
-            if (updatingUi) return;
-            prefs.setUseMmol(on);
-            // convert the field so the number keeps its meaning
-            double val = parseDouble(b.etValue.getText().toString(), Double.NaN);
-            double d = parseDouble(b.etDelta.getText().toString(), Double.NaN);
-            if (!Double.isNaN(val)) b.etValue.setText(on ? fmt(val / 18.0, 1) : fmt(val * 18.0, 0));
-            if (!Double.isNaN(d)) b.etDelta.setText(on ? fmt(d / 18.0, 1) : fmt(d * 18.0, 0));
-        });
-        b.btnSend.setOnClickListener(v -> sendManual());
-        b.swAlarms.setOnCheckedChangeListener((v, on) -> {
-            if (updatingUi) return;
-            prefs.setBroadcastAlarms(on);
-            if (service != null) service.setBroadcastAlarms(on);
-        });
-        b.btnAlarm.setOnClickListener(v -> {
-            int type = b.spAlarm.getSelectedItemPosition();
-            double mgdl = currentMgdl();
-            startService();
-            if (service != null) service.sendAlarm(type, mgdl);
-            else Toast.makeText(this, "service not bound yet", Toast.LENGTH_SHORT).show();
-        });
-        b.btnStatusLine.setOnClickListener(v -> applyStatusLine());
-        b.swStatusLine.setOnCheckedChangeListener((v, on) -> { if (!updatingUi) applyStatusLine(); });
-        b.btnSetup.setOnClickListener(v -> {
-            if (ensurePermissions()) startActivity(new Intent(this, DeviceSetupActivity.class));
-        });
-
-        if (prefs.serverEnabled() || prefs.source() != ObbPrefs.SOURCE_MANUAL) {
-            if (ensurePermissions()) startService();
-        }
+        // the silent bridge restarts with the app when it was left on
+        if (new ObbPrefs(this).serverEnabled())
+            ContextCompat.startForegroundService(this, new Intent(this, OpenBroadcastService.class)
+                    .setAction(OpenBroadcastService.ACTION_START));
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        session.addListener(this);
         bindService(new Intent(this, OpenBroadcastService.class), conn, Context.BIND_AUTO_CREATE);
         handler.post(ticker);
+        refresh();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
         handler.removeCallbacks(ticker);
-        if (service != null) service.removeListener(this);
+        session.removeListener(this);
         try { unbindService(conn); } catch (Exception ignored) {}
-        service = null;
+        bridge = null;
     }
 
-    private void startService() {
-        Intent i = new Intent(this, OpenBroadcastService.class).setAction(OpenBroadcastService.ACTION_START);
-        ContextCompat.startForegroundService(this, i);
-    }
+    @Override public void onChanged() { handler.post(this::refresh); }
+    @Override public void onLog(String line) {}
 
-    // ------------------------------------------------------------------ actions
+    // ------------------------------------------------------------------ summaries
 
-    private double currentMgdl() {
-        double v = parseDouble(b.etValue.getText().toString(), Double.NaN);
-        if (Double.isNaN(v)) return Double.NaN;
-        return b.swMmol.isChecked() ? v * 18.0 : v;
-    }
+    private void refresh() {
+        JSONObject info = session.info();
+        JSONObject cfg = session.config();
+        boolean connected = session.isConnected();
 
-    private void sendManual() {
-        double mgdl = currentMgdl();
-        if (Double.isNaN(mgdl)) { Toast.makeText(this, "enter a value", Toast.LENGTH_SHORT).show(); return; }
-        double delta = parseDouble(b.etDelta.getText().toString().replace("+", ""), Double.NaN);
-        if (!Double.isNaN(delta) && b.swMmol.isChecked()) delta *= 18.0;
-        int trend = b.spTrend.getSelectedItemPosition();
-        ObbReading r = new ObbReading(mgdl, delta, trend, System.currentTimeMillis(), 0);
-        startService();
-        if (service != null) service.setReading(r);
-        else Toast.makeText(this, "service not bound yet, try again", Toast.LENGTH_SHORT).show();
-    }
-
-    private void applyStatusLine() {
-        String text = b.etStatusLine.getText().toString();
-        boolean on = b.swStatusLine.isChecked();
-        prefs.setStatusLine(text);
-        prefs.setStatusLineEnabled(on);
-        if (service != null) service.setStatusLine(text, on);
-    }
-
-    // ------------------------------------------------------------------ state rendering
-
-    private void refreshState() {
-        if (service == null) {
-            b.tvState.setText("service not bound");
-            return;
-        }
-        String s = service.stateSummary();
-        String err = service.getLastError();
-        if (err != null) s += "\n" + err;
-        b.tvState.setText(s);
-        long rem = service.getPairingWindowRemainingMs();
-        b.tvPairing.setText(rem > 0 ? "open, " + (rem / 1000) + " s left" : "closed");
-        ObbReading latest = service.getLatestReading();
-        if (latest != null) {
-            int age = latest.ageSec(System.currentTimeMillis());
-            b.tvLatest.setText("latest: " + latest + " (" + age / 60 + " min ago)");
-        }
-        renderBonded();
-    }
-
-    private void renderBonded() {
-        LinearLayout list = b.bondedList;
-        List<BluetoothDevice> bonded = service.getBondedDevices();
-        List<BluetoothDevice> connected = service.getConnectedDevices();
-        // rebuild only when the set changed
-        String key = bonded.toString() + connected.toString();
-        if (key.equals(list.getTag())) return;
-        list.setTag(key);
-        list.removeAllViews();
-        if (bonded.isEmpty()) {
-            TextView tv = new TextView(this);
-            tv.setText("none");
-            list.addView(tv);
-        }
-        for (BluetoothDevice d : bonded) {
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            TextView tv = new TextView(this);
-            String name = null;
-            try { name = d.getName(); } catch (SecurityException ignored) {}
-            tv.setText((name != null ? name : "?") + "  " + d.getAddress() + (connected.contains(d) ? "  [connected]" : ""));
-            tv.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-            Button forget = new Button(this, null, com.google.android.material.R.attr.borderlessButtonStyle);
-            forget.setText("Forget");
-            forget.setOnClickListener(v -> { service.forgetDevice(d); list.setTag(null); });
-            row.addView(tv);
-            row.addView(forget);
-            list.addView(row);
-        }
-    }
-
-    private void renderLog() {
-        StringBuilder sb = new StringBuilder();
-        int from = Math.max(0, log.size() - 200);
-        for (int i = log.size() - 1; i >= from; i--) sb.append(log.get(i)).append('\n');
-        b.tvLog.setText(sb.toString());
-    }
-
-    @Override
-    public void onLog(String line) {
-        log.add(line);
-        while (log.size() > 200) log.remove(0);
-        renderLog();
-    }
-
-    @Override
-    public void onStateChanged() { handler.post(this::refreshState); }
-
-    // ------------------------------------------------------------------ permissions
-
-    private boolean ensurePermissions() {
-        List<String> need = new ArrayList<>();
-        if (Build.VERSION.SDK_INT >= 31) {
-            for (String p : new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE,
-                    Manifest.permission.BLUETOOTH_SCAN})
-                if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) need.add(p);
+        // 1. device
+        if (!connected) {
+            b.tvDevice.setText(session.isScanning() ? R.string.home_scanning : R.string.home_not_connected_long);
+        } else if (info == null) {
+            b.tvDevice.setText(getString(R.string.home_connected_state, session.state()));
         } else {
-            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-                need.add(Manifest.permission.ACCESS_FINE_LOCATION);
+            String s = getString(R.string.home_connected_info, info.optString("name", "?"), info.optString("fw", "?"));
+            int bat = info.optInt("bat", -1);
+            s += bat >= 0 ? getString(R.string.home_battery, bat) : getString(R.string.home_on_usb);
+            String wake = info.optString("wake", "");
+            if (!wake.isEmpty()) s += getString(R.string.home_woke, wake, info.optInt("uptime", 0));
+            if (!info.optBoolean("live", true)) s += getString(R.string.home_status_page);
+            b.tvDevice.setText(s);
         }
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
-            need.add(Manifest.permission.POST_NOTIFICATIONS);
-        if (need.isEmpty()) return true;
-        ActivityCompat.requestPermissions(this, need.toArray(new String[0]), REQ_PERMS);
-        return false;
+
+        // 2. data source
+        int src = cfg != null ? cfg.optInt("src", -1) : (info != null ? info.optInt("src", -1) : -1);
+        StringBuilder ds = new StringBuilder();
+        if (src >= 0 && src < ConfigFields.SOURCE_SHORT.length) {
+            ds.append(getString(ConfigFields.SOURCE_SHORT[src])).append(getString(ConfigFields.isWifi(src) ? R.string.src_suffix_wifi : R.string.src_suffix_bt));
+            if (info != null) ds.append("\n").append(info.optString("stat", ""));
+        } else {
+            ds.append(getString(R.string.home_connect_source));
+        }
+        if (info != null && info.optInt("bg", 0) > 0) {
+            ds.append(getString(R.string.home_device_reading, info.optInt("bg"), info.optInt("age")));
+        }
+        if (src == ConfigFields.SRC_OBB || (src < 0 && new ObbPrefs(this).serverEnabled())) {
+            if (bridge != null) {
+                ObbReading r = bridge.getLatestReading();
+                ds.append(getString(bridge.isServerRunning() ? R.string.home_bridge_on : R.string.home_bridge_off));
+                if (r != null) ds.append(getString(R.string.home_bridge_reading, r.mgdl,
+                        trendArrow(r.trend), r.ageSec(System.currentTimeMillis()) / 60, bridge.getLatestSource()));
+            } else {
+                ds.append(getString(new ObbPrefs(this).serverEnabled() ? R.string.home_bridge_on : R.string.home_bridge_off));
+            }
+        }
+        b.tvSource.setText(ds.toString());
+
+        // 3. display
+        if (cfg != null) {
+            boolean mmol = cfg.optInt("units", 0) == 1;
+            b.tvDisplay.setText(getString(R.string.home_display_summary,
+                    getString(mmol ? R.string.unit_mmol : R.string.unit_mgdl), g(cfg, "ylo", mmol), g(cfg, "yhi", mmol), g(cfg, "rlo", mmol), g(cfg, "rhi", mmol),
+                    getString(cfg.optInt("t24", 1) == 1 ? R.string.clock_24 : R.string.clock_12)));
+            // 4. alarms
+            if (cfg.optInt("aen", 1) == 0) b.tvAlarms.setText(R.string.home_alarms_off);
+            else b.tvAlarms.setText(getString(R.string.home_alarms_summary,
+                    g(cfg, "wlo", mmol), g(cfg, "whi", mmol), g(cfg, "alo", mmol), g(cfg, "ahi", mmol),
+                    cfg.optInt("nor", 15), cfg.optInt("snoz", 30)));
+            // 5. device settings
+            String name = cfg.optString("name", "");
+            b.tvSettings.setText(getString(R.string.home_settings_summary, name.isEmpty() ? getString(R.string.home_default_name) : name, cfg.optString("tz", "?")));
+        } else {
+            String na = getString(connected ? R.string.home_reading : R.string.home_connect_to_read);
+            b.tvDisplay.setText(na);
+            b.tvAlarms.setText(na);
+            b.tvSettings.setText(na);
+        }
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        boolean all = true;
-        for (int g : grantResults) if (g != PackageManager.PERMISSION_GRANTED) all = false;
-        if (all) startService();
-        else Toast.makeText(this, "Bluetooth permissions are required", Toast.LENGTH_LONG).show();
+    private static String g(JSONObject cfg, String key, boolean mmol) {
+        int v = cfg.optInt(key, 0);
+        return mmol ? String.format(Locale.US, "%.1f", v / 18.0) : String.valueOf(v);
     }
 
-    // ------------------------------------------------------------------ helpers
-
-    static double parseDouble(String s, double def) {
-        try { return Double.parseDouble(s.trim().replace(',', '.')); } catch (Exception e) { return def; }
-    }
-
-    static int parseInt(String s, int def) {
-        try { return Integer.parseInt(s.trim()); } catch (Exception e) { return def; }
-    }
-
-    static String fmt(double v, int decimals) {
-        return String.format(Locale.US, "%." + decimals + "f", v);
+    static String trendArrow(int trend) {
+        switch (trend) {
+            case 1: return "⇈"; case 2: return "↑"; case 3: return "↗"; case 4: return "→";
+            case 5: return "↘"; case 6: return "↓"; case 7: return "⇊"; default: return "";
+        }
     }
 }

@@ -11,11 +11,10 @@
 #include "AppConfig.h"
 #include "GlucoseState.h"
 #include "WifiService.h"
+#include "HttpsClient.h"
 #include "Log.h"
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <HTTPClient.h>
 #include <ArduinoJson.h>
+#define HTTP_CODE_OK 200
 
 static uint32_t s_lastFetchMs = 0;
 static uint32_t s_nextFetchMs = 0;
@@ -39,19 +38,8 @@ static void buildUrl(char *out, size_t len, const char *path) {
 
 // GET url into body; returns HTTP code (or negative HTTPClient error)
 static int httpGet(const char *url, String &body) {
-  HTTPClient http;
-  WiFiClientSecure secure;
-  WiFiClient plain;
-  bool https = strncmp(url, "https", 5) == 0;
-  if (https) secure.setInsecure();
-  http.setConnectTimeout(10000);
-  http.setTimeout(15000);
-  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  if (!(https ? http.begin(secure, url) : http.begin(plain, url))) return -100;
-  int code = http.GET();
-  if (code == HTTP_CODE_OK) body = http.getString();
-  http.end();
-  return code;
+  static const HttpHeader h[] = {{"Accept", "application/json"}};
+  return httpsRequest("GET", url, nullptr, h, 1, body);
 }
 
 static void cleanJson(String &json) {
@@ -127,6 +115,17 @@ static bool fetchEntries() {
   return true;
 }
 
+// a Nightscout "display" value as text: string as is, number formatted, else nullptr
+static const char *displayOf(JsonVariantConst v, char *buf, size_t len) {
+  if (v.is<const char *>()) return v.as<const char *>();
+  if (v.is<float>()) {
+    float f = v.as<float>();
+    snprintf(buf, len, (f == (long)f) ? "%.0f" : "%.1f", f);
+    return buf;
+  }
+  return nullptr;
+}
+
 static void fetchProperties() {
   char url[256];
   buildUrl(url, sizeof(url), "/api/v2/properties/iob,cob,basal");
@@ -135,9 +134,11 @@ static void fetchProperties() {
   JsonDocument doc;
   if (deserializeJson(doc, body)) return;
   char line[96] = "";
-  const char *iob = doc["iob"]["display"] | (const char *)nullptr;
-  const char *cob = doc["cob"]["display"] | (const char *)nullptr;
-  const char *bas = doc["basal"]["display"] | (const char *)nullptr;
+  // "display" is a string for iob/basal but a bare number for cob
+  char iobBuf[16], cobBuf[16], basBuf[16];
+  const char *iob = displayOf(doc["iob"]["display"], iobBuf, sizeof(iobBuf));
+  const char *cob = displayOf(doc["cob"]["display"], cobBuf, sizeof(cobBuf));
+  const char *bas = displayOf(doc["basal"]["display"], basBuf, sizeof(basBuf));
   if (iob) { strlcat(line, "IOB ", sizeof(line)); strlcat(line, iob, sizeof(line)); }
   if (cob) { strlcat(line, iob ? "  COB " : "COB ", sizeof(line)); strlcat(line, cob, sizeof(line)); }
   if (bas && !cob) { strlcat(line, line[0] ? "  " : "", sizeof(line)); strlcat(line, bas, sizeof(line)); }
@@ -157,8 +158,8 @@ void nsTick() {
   bool ok = fetchEntries();
   if (ok) fetchProperties();
 
-  // next poll: 15 s after the expected next reading, else retry every minute
-  uint32_t wait = 60000;
+  // next poll: 15 s after the expected next reading, else retry soon
+  uint32_t wait = ok ? 60000 : 15000;
   if (ok && gs.hasData && gs.readingUtc) {
     time_t t = time(nullptr);
     long due = (long)difftime(gs.readingUtc + 315, t);

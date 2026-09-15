@@ -1,6 +1,6 @@
 /*
- * OpenBroadcastService.java - OBB GATT server (xDrip side of the protocol)
- * Part of xDrip OBB (GPL v3). Copyright (C) 2026 Patrick Sonnerat
+ * OpenBroadcastService.java - OBB GATT server (xDrip side of the protocol), the "bridge"
+ * Part of WaveShareMon (GPL v3). Copyright (C) 2026 Patrick Sonnerat
  *
  * Implements OBB spec section 3 and the required server behaviours of 3.6:
  *  - one BluetoothGattServer with the OBB service, all characteristics encrypted (bonded)
@@ -9,9 +9,11 @@
  *  - pairing window: unbonded clients are dropped unless the window is open
  *  - backfill control point answers "request not supported"
  *
- * Depends only on Android framework classes + ObbProtocol/ObbReading/ObbAlarm, so it can be
- * moved into xDrip; the data-source plumbing (manual / simulator / xDrip local broadcast) is
- * kept in a few clearly marked methods at the bottom.
+ * Readings come in through the receivers (xDrip Broadcast Service API, xDrip Compatible
+ * Broadcast, AAPS status broadcast) as ACTION_READING intents and are de-duplicated on their
+ * timestamp. The service runs silently in the foreground; the user never has to open it.
+ * Depends only on Android framework classes + ObbProtocol/ObbReading/ObbAlarm, so the GATT
+ * part can be moved into xDrip.
  */
 package com.psonnera.xdripobb.obb;
 
@@ -44,6 +46,7 @@ import android.content.pm.ServiceInfo;
 import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -61,6 +64,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+
+import com.psonnera.xdripobb.R;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
@@ -74,14 +79,19 @@ public class OpenBroadcastService extends Service {
     public static final String ACTION_START = "com.psonnera.xdripobb.START";
     public static final String ACTION_STOP = "com.psonnera.xdripobb.STOP";
     public static final String ACTION_READING = "com.psonnera.xdripobb.READING";
+    public static final String ACTION_ALARM = "com.psonnera.xdripobb.ALARM";
+    public static final String ACTION_REGISTER = "com.psonnera.xdripobb.REGISTER";
     public static final String EXTRA_MGDL = "mgdl";
     public static final String EXTRA_DELTA = "delta";
     public static final String EXTRA_TREND = "trend";
     public static final String EXTRA_TIMESTAMP = "ts";
     public static final String EXTRA_FLAGS = "flags";
     public static final String EXTRA_SOURCE_NAME = "srcname";
+    public static final String EXTRA_STATUS_LINE = "sline";
+    public static final String EXTRA_ALARM_TYPE = "alarmtype";
 
     public static final long PAIRING_WINDOW_MS = 60_000;
+    private static final long REREGISTER_MS = 30 * 60_000;   // xDrip forgets us when it restarts
 
     public interface Listener {
         void onLog(String line);
@@ -112,14 +122,19 @@ public class OpenBroadcastService extends Service {
     private final Map<BluetoothDevice, Set<java.util.UUID>> subscriptions = new HashMap<>();
 
     private ObbReading latest = null;
+    private String latestSource = "";
     private ObbAlarm lastAlarm = null;
     private String statusLine = "";
-    private boolean statusLineEnabled = false;
+    private boolean statusLineEnabled = true;
     private boolean broadcastAlarms = true;
 
-    // data sources
-    private Simulator simulator;
-    private final Runnable simTick = this::simulatorTick;
+    private final Runnable reregister = new Runnable() {
+        @Override
+        public void run() {
+            if (prefs.xdripApiEnabled()) XdripApi.register(OpenBroadcastService.this);
+            handler.postDelayed(this, REREGISTER_MS);
+        }
+    };
 
     // ------------------------------------------------------------------ lifecycle
 
@@ -127,7 +142,6 @@ public class OpenBroadcastService extends Service {
     public void onCreate() {
         super.onCreate();
         prefs = new ObbPrefs(this);
-        statusLine = prefs.statusLine();
         statusLineEnabled = prefs.statusLineEnabled();
         broadcastAlarms = prefs.broadcastAlarms();
         BluetoothManager bm = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -136,6 +150,10 @@ public class OpenBroadcastService extends Service {
         startForegroundCompat();
         ContextCompat.registerReceiver(this, bondReceiver,
                 new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED), ContextCompat.RECEIVER_EXPORTED);
+        // xDrip's "start" is an implicit broadcast: only a runtime receiver sees it
+        ContextCompat.registerReceiver(this, xdripStartReceiver,
+                new IntentFilter(XdripApi.ACTION_FROM_XDRIP), ContextCompat.RECEIVER_EXPORTED);
+        handler.post(reregister);
         log("service created");
     }
 
@@ -148,19 +166,23 @@ public class OpenBroadcastService extends Service {
             return START_NOT_STICKY;
         }
         if (ACTION_READING.equals(action)) {
-            // from XdripBroadcastReceiver
-            if (prefs.source() == ObbPrefs.SOURCE_XDRIP_BRIDGE) {
-                ObbReading r = new ObbReading(intent.getDoubleExtra(EXTRA_MGDL, Double.NaN),
-                        intent.getDoubleExtra(EXTRA_DELTA, Double.NaN),
-                        intent.getIntExtra(EXTRA_TREND, ObbProtocol.TREND_UNKNOWN),
-                        intent.getLongExtra(EXTRA_TIMESTAMP, System.currentTimeMillis()),
-                        intent.getIntExtra(EXTRA_FLAGS, 0));
-                log("xDrip bridge: " + r);
-                setReading(r);
-            }
+            ObbReading r = new ObbReading(intent.getDoubleExtra(EXTRA_MGDL, Double.NaN),
+                    intent.getDoubleExtra(EXTRA_DELTA, Double.NaN),
+                    intent.getIntExtra(EXTRA_TREND, ObbProtocol.TREND_UNKNOWN),
+                    intent.getLongExtra(EXTRA_TIMESTAMP, System.currentTimeMillis()),
+                    intent.getIntExtra(EXTRA_FLAGS, 0));
+            String src = intent.getStringExtra(EXTRA_SOURCE_NAME);
+            String sl = intent.getStringExtra(EXTRA_STATUS_LINE);
+            onSourceReading(r, src != null ? src : "?", sl);
+        } else if (ACTION_ALARM.equals(action)) {
+            int type = intent.getIntExtra(EXTRA_ALARM_TYPE, ObbProtocol.ALARM_ALL_CLEAR);
+            String src = intent.getStringExtra(EXTRA_SOURCE_NAME);
+            log("alarm from " + src + ": type " + type);
+            sendAlarm(type, latest != null ? latest.mgdl : Double.NaN);
+        } else if (ACTION_REGISTER.equals(action)) {
+            if (prefs.xdripApiEnabled()) XdripApi.register(this);
         }
         if (prefs.serverEnabled() && !serverRunning) startServer();
-        applySource();
         return START_STICKY;
     }
 
@@ -170,8 +192,9 @@ public class OpenBroadcastService extends Service {
     @Override
     public void onDestroy() {
         stopServer();
-        handler.removeCallbacks(simTick);
+        handler.removeCallbacks(reregister);
         try { unregisterReceiver(bondReceiver); } catch (Exception ignored) {}
+        try { unregisterReceiver(xdripStartReceiver); } catch (Exception ignored) {}
         super.onDestroy();
     }
 
@@ -179,17 +202,17 @@ public class OpenBroadcastService extends Service {
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm != null && nm.getNotificationChannel(CHANNEL_ID) == null) {
             nm.createNotificationChannel(new NotificationChannel(CHANNEL_ID,
-                    getString(com.psonnera.xdripobb.R.string.notif_channel), NotificationManager.IMPORTANCE_LOW));
+                    getString(R.string.notif_channel), NotificationManager.IMPORTANCE_LOW));
         }
     }
 
     private void startForegroundCompat() {
-        Intent open = new Intent(this, com.psonnera.xdripobb.ui.MainActivity.class);
+        Intent open = new Intent(this, com.psonnera.xdripobb.ui.BridgeActivity.class);
         PendingIntent pi = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE);
         Notification n = new Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle(getString(com.psonnera.xdripobb.R.string.notif_title))
-                .setContentText(stateSummary())
-                .setSmallIcon(com.psonnera.xdripobb.R.drawable.ic_stat_obb)
+                .setContentTitle(getString(R.string.notif_title))
+                .setContentText(notificationText())
+                .setSmallIcon(R.drawable.ic_stat_obb)
                 .setContentIntent(pi)
                 .setOngoing(true)
                 .build();
@@ -200,8 +223,38 @@ public class OpenBroadcastService extends Service {
         }
     }
 
+    private String notificationText() {
+        String s = stateSummary();
+        if (latest != null) {
+            int age = latest.ageSec(System.currentTimeMillis()) / 60;
+            s += getString(R.string.notif_reading, latest.mgdl, age, latestSource);
+        }
+        return s;
+    }
+
     private void updateNotification() {
         try { startForegroundCompat(); } catch (Exception e) { Log.w(TAG, "notification", e); }
+    }
+
+    // ------------------------------------------------------------------ readings from the phone apps
+
+    private void onSourceReading(ObbReading r, String source, String sline) {
+        if (Double.isNaN(r.mgdl) || r.mgdl <= 0) return;
+        // xDrip's two broadcasts and AAPS all carry the same reading: keep the first copy
+        if (latest != null && r.timestampMs <= latest.timestampMs) {
+            if (sline != null && statusLineEnabled) applyStatusLine(sline);
+            return;
+        }
+        latestSource = source;
+        log(source + ": " + r);
+        prefs.setLast(r.mgdl, r.timestampMs);
+        setReading(r);
+        if (sline != null && statusLineEnabled) applyStatusLine(sline);
+    }
+
+    private void applyStatusLine(String text) {
+        if (text.equals(statusLine)) return;
+        setStatusLine(text, true);
     }
 
     // ------------------------------------------------------------------ public API (Binder)
@@ -214,14 +267,32 @@ public class OpenBroadcastService extends Service {
     public boolean isAdvertising() { return advertising; }
     public String getLastError() { return lastError; }
     public ObbReading getLatestReading() { return latest; }
+    public String getLatestSource() { return latestSource; }
     public long getPairingWindowRemainingMs() { return Math.max(0, pairingWindowEnd - System.currentTimeMillis()); }
     public boolean isPairingWindowOpen() { return getPairingWindowRemainingMs() > 0; }
+
+    /** the device the setup pages connected to, or its Mi Band-mode address (first byte | 0xC0) */
+    private boolean isOurDevice(String address) {
+        String known = prefs != null ? prefs.deviceAddress() : "";
+        if (known == null || known.length() < 17 || address == null || address.length() < 17) return false;
+        if (known.equalsIgnoreCase(address)) return true;
+        try {
+            int msb = Integer.parseInt(known.substring(0, 2), 16) | 0xC0;
+            String alias = String.format("%02X", msb) + known.substring(2);
+            return alias.equalsIgnoreCase(address);
+        } catch (NumberFormatException e) { return false; }
+    }
     public boolean isBluetoothAvailable() { return adapter != null; }
 
     public void enableServer(boolean on) {
         prefs.setServerEnabled(on);
-        if (on) startServer(); else stopServer();
-        applySource();
+        if (on) { startServer(); if (prefs.xdripApiEnabled()) XdripApi.register(this); }
+        else stopServer();
+    }
+
+    /** ask xDrip for its latest reading (and refresh the registration) */
+    public void requestNow() {
+        if (prefs.xdripApiEnabled()) XdripApi.register(this);
     }
 
     /** 3.6 rule 4: opens the bonding window for PAIRING_WINDOW_MS. */
@@ -273,7 +344,6 @@ public class OpenBroadcastService extends Service {
     public void setStatusLine(String text, boolean enabled) {
         statusLine = text == null ? "" : text;
         statusLineEnabled = enabled;
-        prefs.setStatusLine(statusLine);
         prefs.setStatusLineEnabled(enabled);
         if (statusLineChar != null) {
             byte[] v = enabled ? statusLine.getBytes(StandardCharsets.UTF_8) : new byte[0];
@@ -286,6 +356,8 @@ public class OpenBroadcastService extends Service {
         }
         log("status line " + (enabled ? "on: " : "off ") + statusLine.replace('\n', '|'));
     }
+
+    public String getStatusLine() { return statusLine; }
 
     public List<BluetoothDevice> getConnectedDevices() { synchronized (connected) { return new ArrayList<>(connected); } }
 
@@ -313,11 +385,11 @@ public class OpenBroadcastService extends Service {
     }
 
     public String stateSummary() {
-        if (adapter == null) return "Bluetooth not available";
-        if (!serverRunning) return "server off";
-        StringBuilder sb = new StringBuilder(advertising ? "advertising" : "not advertising");
-        synchronized (connected) { sb.append(", ").append(connected.size()).append(" connected"); }
-        if (isPairingWindowOpen()) sb.append(", pairing ").append(getPairingWindowRemainingMs() / 1000).append(" s");
+        if (adapter == null) return getString(R.string.bridge_bt_unavailable);
+        if (!serverRunning) return getString(R.string.bridge_off);
+        StringBuilder sb = new StringBuilder(getString(advertising ? R.string.bridge_advertising : R.string.bridge_not_advertising));
+        synchronized (connected) { sb.append(getString(R.string.bridge_connected_count, connected.size())); }
+        if (isPairingWindowOpen()) sb.append(getString(R.string.bridge_pairing_left, getPairingWindowRemainingMs() / 1000));
         return sb.toString();
     }
 
@@ -336,21 +408,21 @@ public class OpenBroadcastService extends Service {
     private void startServer() {
         if (serverRunning) return;
         lastError = null;
-        if (adapter == null) { fail("no Bluetooth adapter on this device"); return; }
-        if (!adapter.isEnabled()) { fail("Bluetooth is off"); return; }
-        if (!hasConnectPermission()) { fail("BLUETOOTH_CONNECT permission missing"); return; }
+        if (adapter == null) { fail(getString(R.string.err_no_adapter)); return; }
+        if (!adapter.isEnabled()) { fail(getString(R.string.err_bt_off)); return; }
+        if (!hasConnectPermission()) { fail(getString(R.string.err_perm_connect)); return; }
         BluetoothManager bm = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         try {
             gattServer = bm.openGattServer(this, gattCallback);
         } catch (SecurityException e) {
-            fail("openGattServer: " + e.getMessage());
+            fail(getString(R.string.err_open_gatt, e.getMessage()));
             return;
         }
-        if (gattServer == null) { fail("openGattServer returned null"); return; }
+        if (gattServer == null) { fail(getString(R.string.err_open_gatt_null)); return; }
         BluetoothGattService svc = buildService();
         try {
-            if (!gattServer.addService(svc)) { fail("addService failed"); return; }
-        } catch (SecurityException e) { fail("addService: " + e.getMessage()); return; }
+            if (!gattServer.addService(svc)) { fail(getString(R.string.err_add_service)); return; }
+        } catch (SecurityException e) { fail(getString(R.string.err_add_service_ex, e.getMessage())); return; }
         serverRunning = true;
         log("GATT server started");
         startAdvertising();
@@ -466,8 +538,7 @@ public class OpenBroadcastService extends Service {
             if (cap >= 0 && cap <= 100) battery = cap;
         }
         long now = System.currentTimeMillis();
-        int source = prefs.source() == ObbPrefs.SOURCE_XDRIP_BRIDGE ? ObbProtocol.SOURCE_CGM : ObbProtocol.SOURCE_UNKNOWN;
-        return ObbProtocol.encodeStatus(ObbProtocol.PROTOCOL_VERSION, 0, battery, source, now / 1000L,
+        return ObbProtocol.encodeStatus(ObbProtocol.PROTOCOL_VERSION, 0, battery, ObbProtocol.SOURCE_CGM, now / 1000L,
                 ObbProtocol.tzOffsetQuarterHours(TimeZone.getDefault(), now));
     }
 
@@ -477,7 +548,13 @@ public class OpenBroadcastService extends Service {
             boolean bonded = false;
             try { bonded = device.getBondState() == BluetoothDevice.BOND_BONDED; } catch (SecurityException ignored) {}
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                if (!bonded && !isPairingWindowOpen()) {
+                // Links this phone opened itself (xDrip talking to the device in Mi Band mode,
+                // the setup pages talking to it) show up here too and must not be dropped.
+                // BluetoothManager.getConnectionState() cannot tell the direction (it also
+                // reports the device's own incoming link), so the configured device and its
+                // Mi Band alias are simply always welcome.
+                boolean ours = isOurDevice(device.getAddress());
+                if (!bonded && !ours && !isPairingWindowOpen()) {
                     // 3.6 rule 4: outside the window unknown devices are rejected
                     log("connect from unbonded " + device.getAddress() + " outside pairing window -> dropped");
                     try { gattServer.cancelConnection(device); } catch (SecurityException ignored) {}
@@ -616,15 +693,15 @@ public class OpenBroadcastService extends Service {
                 case ADVERTISE_FAILED_FEATURE_UNSUPPORTED: why = "feature unsupported"; break;
                 default: why = "error " + errorCode;
             }
-            fail("advertising failed: " + why);
+            fail(getString(R.string.err_adv_failed, why));
         }
     };
 
     private void startAdvertising() {
         if (adapter == null || advertising) return;
-        if (!hasAdvertisePermission()) { fail("BLUETOOTH_ADVERTISE permission missing"); return; }
+        if (!hasAdvertisePermission()) { fail(getString(R.string.err_perm_advertise)); return; }
         advertiser = adapter.getBluetoothLeAdvertiser();
-        if (advertiser == null) { fail("BLE advertising not supported by this device/emulator"); return; }
+        if (advertiser == null) { fail(getString(R.string.err_adv_unsupported)); return; }
         AdvertiseSettings settings = new AdvertiseSettings.Builder()
                 .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
                 .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
@@ -641,7 +718,7 @@ public class OpenBroadcastService extends Service {
         try {
             advertiser.startAdvertising(settings, data, scanResponse, advCallback);
         } catch (SecurityException e) {
-            fail("startAdvertising: " + e.getMessage());
+            fail(getString(R.string.err_start_adv, e.getMessage()));
         }
     }
 
@@ -663,24 +740,18 @@ public class OpenBroadcastService extends Service {
         }
     };
 
-    // ------------------------------------------------------------------ data sources (app only, not for xDrip)
-
-    /** (Re)applies the source selected in prefs: starts/stops the simulator. */
-    public void applySource() {
-        handler.removeCallbacks(simTick);
-        if (prefs.source() == ObbPrefs.SOURCE_SIMULATOR) {
-            if (simulator == null) simulator = new Simulator();
-            handler.post(simTick);
+    /** xDrip (re)started its Broadcast Service: register again (the manifest receiver handles the data). */
+    private final BroadcastReceiver xdripStartReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Bundle b = intent != null ? intent.getExtras() : null;
+            String fn = b != null ? b.getString(XdripApi.KEY_FUNCTION, "") : "";
+            if (XdripApi.FN_START.equals(fn) && prefs.xdripApiEnabled()) {
+                log("xDrip API started, registering");
+                XdripApi.register(OpenBroadcastService.this);
+            }
         }
-    }
-
-    private void simulatorTick() {
-        if (prefs.source() != ObbPrefs.SOURCE_SIMULATOR) return;
-        ObbReading r = simulator.next(System.currentTimeMillis());
-        log("simulator: " + r);
-        setReading(r);
-        handler.postDelayed(simTick, Math.max(2, prefs.simIntervalSec()) * 1000L);
-    }
+    };
 
     // ------------------------------------------------------------------ logging
 

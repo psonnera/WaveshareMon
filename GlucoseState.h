@@ -37,6 +37,16 @@ struct GlucoseState {
   // set by the data layer, consumed (cleared) by the UI
   volatile bool dataChanged = false;
 
+  // counters for the power cycle: sourceSeq advances on every reading the
+  // source delivered (duplicates included: the source was reached and has
+  // nothing newer), readingSeq only on a genuinely new reading
+  uint32_t sourceSeq = 0;
+  uint32_t readingSeq = 0;
+
+  // the source was changed / reconfigured: the panel shows its status page
+  // again until the new source delivers a reading
+  void markSourceChanged() { live = false; deltaValid = false; infoLine[0] = 0; dataChanged = true; }
+
   void onReading(uint16_t newMgdl, time_t utc, int arrowAngleIn);
   // authoritative delta from the source (OBB packet / Nightscout)
   void setDelta(int16_t delta, bool valid);
@@ -46,19 +56,26 @@ struct GlucoseState {
 
   float sgvMmol() const { return mgdl / 18.0f; }
   int   minutesAgo() const;
-  bool  isStale() const { return remoteStale || minutesAgo() > 15; }
+  // reading age on the screen: crossed out from LATE_MIN, replaced by "---" from STALE_MIN
+  static const int LATE_MIN  = 7;
+  static const int STALE_MIN = 12;
+  bool  isLate()  const { return remoteStale || minutesAgo() >= LATE_MIN; }
+  bool  isStale() const { return minutesAgo() >= STALE_MIN; }
   // value formatted in the configured units ("123" or "6.8")
   void  valueString(char *out, size_t outLen, bool asMgdl) const;
   void  deltaString(char *out, size_t outLen, bool asMgdl) const;
 
-  void persist();
-  void restore();
+  void persist();                // last value + history to NVS (survives power loss)
+  void restore();                // RTC copy after deep sleep, else NVS
+  void saveRtc();                // full state to RTC memory before deep sleep
 };
 
 // map a Nightscout direction name ("Flat", "SingleUp", ...) to an arrow angle
 int nsDirectionToAngle(const char *dir);
 // map the OBB trend enum (0..8) to an arrow angle
 int obbTrendToAngle(uint8_t trend);
+// map an xDrip UTF-8 arrow character ("→", "↗", ...) to an arrow angle
+int slopeArrowToAngle(const char *s);
 
 extern GlucoseState gs;
 
