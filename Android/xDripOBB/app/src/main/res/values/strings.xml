@@ -84,16 +84,22 @@
     <string name="src_label_miband">xDrip Mi Band (Bluetooth, no app needed)</string>
     <string name="src_label_dexcom">Dexcom Share (Wi-Fi)</string>
     <string name="src_label_libre">LibreLinkUp (Wi-Fi)</string>
+    <string name="src_label_x4i">xDrip4iOS (Bluetooth, no app needed)</string>
     <string name="src_short_obb">xDrip / AAPS via phone</string>
     <string name="src_short_nightscout" translatable="false">Nightscout</string>
     <string name="src_short_miband" translatable="false">xDrip Mi Band</string>
     <string name="src_short_dexcom" translatable="false">Dexcom Share</string>
     <string name="src_short_libre" translatable="false">LibreLinkUp</string>
+    <string name="src_short_x4i" translatable="false">xDrip4iOS</string>
     <string name="hint_src_obb">This phone relays xDrip / AAPS readings to the device over Bluetooth (the bridge below must stay on). Pair the device from the bridge: Pairing mode, then accept the phone\'s prompts.</string>
     <string name="hint_src_miband">xDrip\'s own Mi Band support pushes every reading straight to the device. In xDrip: Settings › Smart Watch Features › MiBand: Use MiBand Band ON, Mac address empty (auto search finds "MI Band 2"), Send Readings ON, then Update BG manually once.</string>
     <string name="hint_src_nightscout">The device polls your Nightscout site over Wi-Fi every 5 minutes. Use a read-only access token.</string>
     <string name="hint_src_dexcom">The device polls Dexcom Share with the sensor user\'s own account (not a follower\'s). At least one follower must be set up in the Dexcom app.</string>
     <string name="hint_src_libre">The device polls LibreLinkUp with a follower account invited from the patient\'s LibreLink app. If the device shows "set ver X.Y.Z", enter that version here.</string>
+    <string name="hint_src_x4i">On the iPhone, in xDrip4iOS add a Bluetooth device of type M5Stack: the app finds "M5Stack " followed by this device\'s name, pairs by itself and pushes every reading, the time and the units. No phone app of ours is needed.</string>
+    <string name="x4i_info">xDrip4iOS link: %1$s%2$s</string>
+    <string name="x4i_password"> · password %1$s</string>
+    <string name="x4i_no_password"> · no password yet</string>
 
     <!-- ===== configuration fields (labels of the device's Config JSON keys) ===== -->
     <string name="field_src">Data source</string>
@@ -140,6 +146,7 @@
     <string name="cmd_testalarm">Test alarm</string>
     <string name="cmd_setupoff">Setup mode off</string>
     <string name="cmd_mbforget">Forget Mi Band key</string>
+    <string name="cmd_x4iforget">Reset xDrip4iOS password</string>
     <string name="cmd_reboot">Reboot</string>
     <string name="cmd_factory">Factory reset</string>
     <string name="factory_message">Erases the configuration, the pairing and the Mi Band key. The device restarts in setup mode.</string>

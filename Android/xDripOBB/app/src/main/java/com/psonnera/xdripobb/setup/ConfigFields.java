@@ -16,17 +16,17 @@ public final class ConfigFields {
     private ConfigFields() {}
 
     // firmware source numbers (AppConfig.h)
-    public static final int SRC_OBB = 0, SRC_NIGHTSCOUT = 1, SRC_MIBAND = 2, SRC_DEXCOM = 3, SRC_LIBRE = 4;
+    public static final int SRC_OBB = 0, SRC_NIGHTSCOUT = 1, SRC_MIBAND = 2, SRC_DEXCOM = 3, SRC_LIBRE = 4, SRC_XDRIP4IOS = 5;
 
     /** spinner entries, indexed by source number */
     @StringRes public static final int[] SOURCE_LABELS = {
             R.string.src_label_obb, R.string.src_label_nightscout, R.string.src_label_miband,
-            R.string.src_label_dexcom, R.string.src_label_libre};
+            R.string.src_label_dexcom, R.string.src_label_libre, R.string.src_label_x4i};
 
     /** short names for the home summary, indexed by source number */
     @StringRes public static final int[] SOURCE_SHORT = {
             R.string.src_short_obb, R.string.src_short_nightscout, R.string.src_short_miband,
-            R.string.src_short_dexcom, R.string.src_short_libre};
+            R.string.src_short_dexcom, R.string.src_short_libre, R.string.src_short_x4i};
 
     public static boolean isWifi(int src) { return src == SRC_NIGHTSCOUT || src == SRC_DEXCOM || src == SRC_LIBRE; }
 
@@ -99,6 +99,7 @@ public final class ConfigFields {
             case SRC_NIGHTSCOUT: return R.string.hint_src_nightscout;
             case SRC_DEXCOM:     return R.string.hint_src_dexcom;
             case SRC_LIBRE:      return R.string.hint_src_libre;
+            case SRC_XDRIP4IOS:  return R.string.hint_src_x4i;
             default:             return 0;
         }
     }
@@ -116,6 +117,7 @@ public final class ConfigFields {
             new Command(R.string.cmd_refresh, "refresh"), new Command(R.string.cmd_snooze, "snooze"),
             new Command(R.string.cmd_testwarn, "testwarn"), new Command(R.string.cmd_testalarm, "testalarm"),
             new Command(R.string.cmd_setupoff, "setupoff"), new Command(R.string.cmd_mbforget, "mbforget"),
+            new Command(R.string.cmd_x4iforget, "x4iforget"),
             new Command(R.string.cmd_update, CMD_UPDATE),
             new Command(R.string.cmd_reboot, "reboot"), new Command(R.string.cmd_factory, CMD_FACTORY)};
 }

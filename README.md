@@ -17,6 +17,7 @@ delta, reading age, a 2-hour graph and alarms. It accepts five data sources:
 | **xDrip Mi Band** | Bluetooth LE | The device poses as a *Mi Band 2*; xDrip's built-in Mi Band support pushes every reading to it. No phone app needed. |
 | **Dexcom Share** | Wi-Fi | Logs into Dexcom Share with the sensor user's own account (at least one follower must exist in the Dexcom app) and polls the latest values. |
 | **LibreLinkUp** | Wi-Fi | Logs into LibreLinkUp with a follower account invited from the patient's LibreLink app and polls the latest value. Best effort: Abbott's unofficial v4 API may be retired. |
+| **xDrip4iOS** | Bluetooth LE | The device speaks the *M5Stack* protocol of xDrip4iOS / xdripswift (advertised as `M5Stack WaveshareMon-XXXX`); the app pairs by password, pushes every reading, the time and the units. For iPhones, no Android phone needed. |
 
 The board has no navigation buttons, so all settings are entered from the Android app over BLE.
 A configured device deep-sleeps between readings and wakes every 5 minutes for a short radio
@@ -142,6 +143,8 @@ python -m esptool --chip esp32s3 --port COM4 --baud 921600 --before usb-reset wr
      Outside USA / Japan), time zone.
    - **LibreLinkUp (Wi-Fi)**: Wi-Fi, LibreLinkUp email, password, region (empty = auto), app
      version header (default `4.16.0`), time zone.
+   - **xDrip4iOS (Bluetooth, no app needed)**: nothing else; time, zone and units come from the
+     phone.
 
    The Wi-Fi sources also share **Verify TLS certificates** (on by default, embedded root
    bundle). Writing the config requires the bond; the app writes the phone's clock with every
@@ -158,6 +161,11 @@ python -m esptool --chip esp32s3 --port COM4 --baud 921600 --before usb-reset wr
      authentication key.
    - **Nightscout / Dexcom Share / LibreLinkUp**: nothing else; the first reading appears after
      the Wi-Fi join and the login.
+   - **xDrip4iOS**: in xDrip4iOS add a Bluetooth device of type **M5Stack** with the app in the
+     foreground and the device awake (setup mode). The app finds `M5Stack WaveshareMon-XXXX`;
+     the device generates the password and hands it over (nothing to type), then every reading
+     is pushed. The password shows in the device info; **Reset xDrip4iOS password** (serial
+     `x4iforget`) clears it for another phone.
 
 ## Pairing notes
 

@@ -16,6 +16,7 @@ void powerOff();                   // WaveshareMon.ino
 #include "Battery.h"
 #include "BleObbClient.h"
 #include "BleMiBand.h"
+#include "BleXdrip4iOS.h"
 #include "BleSetupServer.h"
 #include "OtaUpdate.h"
 #include "WifiService.h"
@@ -135,8 +136,8 @@ void debugInjectPoll() {
                     cycleWakeName(), (unsigned long)cycleWakes(), cycleAwake(), cfg.noSleep,
                     cfg.firstRun, cycleStatusText(), miBandStateName(), cfg.mibandKeySet,
                     dxStatus(), llStatus());
-      Serial.printf("[dbg] build=%lu ota='%s' server=%lu\n", (unsigned long)WSMON_BUILD, otaStatus(),
-                    (unsigned long)otaLatestBuild());
+      Serial.printf("[dbg] build=%lu ota='%s' server=%lu x4i=%s pw=%s\n", (unsigned long)WSMON_BUILD, otaStatus(),
+                    (unsigned long)otaLatestBuild(), xdrip4iosStateName(), cfg.x4iPassword[0] ? "set" : "none");
       if (NimBLEDevice::isInitialized()) {
         int nb = NimBLEDevice::getNumBonds();
         Serial.printf("[dbg] bonds=%d", nb);
@@ -172,6 +173,8 @@ void debugInjectPoll() {
       // "update": fetch update.inf from the repository and install a newer build;
       // "update check": only report
       otaRequest(strstr(line, "check") == nullptr);
+    } else if (strcmp(line, "x4iforget") == 0) {
+      xdrip4iosForgetPassword();
     } else if (strcmp(line, "wifiscan") == 0) {
       wifiScanStart();       // the networks the radio sees (2.4 GHz), printed when done
     } else if (strcmp(line, "dx") == 0) {

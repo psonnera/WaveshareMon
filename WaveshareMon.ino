@@ -34,6 +34,7 @@
 #include "TimeService.h"
 #include "BleObbClient.h"
 #include "BleMiBand.h"
+#include "BleXdrip4iOS.h"
 #include "BleSetupServer.h"
 #include "WifiService.h"
 #include "NightscoutClient.h"
@@ -63,14 +64,17 @@ static bool s_bleUp = false;
 static void bleBegin() {
   if (s_bleUp) return;
   s_bleUp = true;
-  // xDrip's Mi Band support reads the GAP device name and expects "MI Band 2"
-  NimBLEDevice::init(cfg.source == SRC_MIBAND ? "MI Band 2" : cfg.name());
+  // xDrip's Mi Band support reads the GAP device name and expects "MI Band 2";
+  // xDrip4iOS looks for a name containing "M5Stack"
+  NimBLEDevice::init(cfg.source == SRC_MIBAND    ? "MI Band 2" :
+                     cfg.source == SRC_XDRIP4IOS ? xdrip4iosName() : cfg.name());
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
-  if (cfg.source == SRC_MIBAND) {
+  if (cfg.source == SRC_MIBAND || cfg.source == SRC_XDRIP4IOS) {
     // Phones cache the GATT table of a bonded address, and the OBB/setup-only
     // table of the public address would hide the Mi Band services from xDrip.
-    // The Mi Band identity therefore gets its own stable static random
-    // address, derived from the public one.
+    // The Mi Band and xDrip4iOS identities therefore get their own stable
+    // static random address, derived from the public one (xDrip4iOS remembers
+    // the device by that address after the first connection).
     uint8_t v[6];
     memcpy(v, NimBLEDevice::getAddress().getBase()->val, 6);
     v[5] |= 0xC0;                       // static random address marker
@@ -84,6 +88,7 @@ static void bleBegin() {
   setupServerBegin();
   if (cfg.source == SRC_OBB) obbBegin();
   if (cfg.source == SRC_MIBAND) miBandBegin();
+  if (cfg.source == SRC_XDRIP4IOS) xdrip4iosBegin();
 }
 
 void enterSetupMode(bool timed) {   // also used by the serial "setup" command
@@ -212,6 +217,7 @@ void loop() {
   obbSetPaused(setupServerClientConnected() || cfg.source != SRC_OBB);
   if (cfg.source == SRC_OBB) obbTick();
   if (cfg.source == SRC_MIBAND) miBandTick();
+  if (cfg.source == SRC_XDRIP4IOS) xdrip4iosTick();
 
   wifiTick();
   nsTick();

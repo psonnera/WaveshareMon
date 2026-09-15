@@ -41,6 +41,7 @@ pre{background:#222;color:#ddd;font-size:12px;padding:8px;border-radius:6px;max-
 <option value="2">xDrip Mi Band (Bluetooth)</option>
 <option value="3">Dexcom Share (Wi-Fi)</option>
 <option value="4">LibreLinkUp (Wi-Fi)</option>
+<option value="5">xDrip4iOS (Bluetooth, no app needed)</option>
 </select>
 <div class="hint" id="srchint"></div>
 <div id="g-wifi">
@@ -108,6 +109,7 @@ pre{background:#222;color:#ddd;font-size:12px;padding:8px;border-radius:6px;max-
 <section><h2>Commands</h2>
 <button class="sec" data-c="refresh">Refresh display</button><button class="sec" data-c="snooze">Snooze</button>
 <button class="sec" data-c="testwarn">Test warning</button><button class="sec" data-c="testalarm">Test alarm</button>
+<button class="sec" data-c="x4iforget" data-q="Forget the xDrip4iOS password? Remove the device in xDrip4iOS and add it again afterwards.">Reset xDrip4iOS password</button>
 <button class="sec" data-c="update" data-q="Download the latest firmware from the GitHub repository over Wi-Fi and restart the device?">Update firmware</button>
 <button class="sec" data-c="reboot" data-q="Restart the device?">Reboot</button>
 <button class="warn" data-c="factory" data-q="Erase the configuration, the Bluetooth pairing and the Mi Band key?">Factory reset</button>
@@ -126,7 +128,8 @@ const HINT=['The phone runs the WaveShareMon Android app whose Bluetooth bridge 
  'The device polls your Nightscout site every 5 minutes. Enter the site address and an access token (a subject with the readable role).',
  'The device poses as a Mi Band 2. In xDrip enable the Mi Band support with this device\'s Bluetooth address (see the Info below and the wiki); no app needed.',
  'The sensor user\'s own Dexcom account; the Dexcom app must have at least one follower.',
- 'A follower account invited from the patient\'s LibreLink app. Best effort: Abbott may retire this API.'];
+ 'A follower account invited from the patient\'s LibreLink app. Best effort: Abbott may retire this API.',
+ 'In xDrip4iOS add a Bluetooth device of type M5Stack: the app finds "M5Stack " + this device\'s name, pairs by itself and pushes every reading, the time and the units. Reset the password below to pair another iPhone.'];
 let cfg=null,curMm=false;
 const isWifi=s=>s==1||s==3||s==4;
 function showGroups(){const s=+$('src').value;
@@ -154,7 +157,7 @@ async function loadConfig(){try{fill(await (await fetch('/api/config')).json());
 async function loadInfo(){try{const i=await (await fetch('/api/info')).json();$('nm').textContent=i.name+' setup';
  let s='Firmware '+i.fw+(i.build?' build '+i.build:'')+' · '+(i.bat>=0?'battery '+i.bat+' %':'on USB')+'\n'+(i.stat||'');
  s+='\nWi-Fi: '+i.wifi+(i.ip?' '+i.ip:'')+(i.wifierr?' – '+i.wifierr:'');
- if(i.mac)s+='\nBluetooth address '+i.mac;if(i.ota)s+='\nFirmware update: '+i.ota;$('st').textContent=s;}catch(e){}}
+ if(i.mac)s+='\nBluetooth address '+i.mac;if(i.src==5)s+='\nxDrip4iOS: '+i.x4i+(i.x4ipw?' \u00b7 password '+i.x4ipw:' \u00b7 no password yet');if(i.ota)s+='\nFirmware update: '+i.ota;$('st').textContent=s;}catch(e){}}
 async function loadLog(){try{const t=await (await fetch('/api/log')).text();const p=$('log');const b=p.scrollTop+p.clientHeight>=p.scrollHeight-4;p.textContent=t;if(b)p.scrollTop=p.scrollHeight;}catch(e){}}
 $('bsave').onclick=async()=>{const o=collect();if(!Object.keys(o).length){$('msg').textContent='Nothing changed.';return;}
  if(isWifi(o.src??cfg.src)&&!(o.ssid??cfg.ssid)){$('msg').textContent='Enter the Wi-Fi network name.';return;}

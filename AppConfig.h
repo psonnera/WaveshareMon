@@ -15,8 +15,9 @@
 #define SRC_MIBAND     2   // Mi Band 2 emulation (BLE, xDrip pushes directly)
 #define SRC_DEXCOM     3   // Dexcom Share over Wi-Fi
 #define SRC_LIBRE      4   // LibreLinkUp over Wi-Fi
-#define SRC_MAX        4
-#define SRC_IS_BLE(s)  ((s) == SRC_OBB || (s) == SRC_MIBAND)
+#define SRC_XDRIP4IOS  5   // xDrip4iOS "M5Stack" protocol (BLE, the iPhone pushes directly)
+#define SRC_MAX        5
+#define SRC_IS_BLE(s)  ((s) == SRC_OBB || (s) == SRC_MIBAND || (s) == SRC_XDRIP4IOS)
 #define SRC_IS_WIFI(s) ((s) == SRC_NIGHTSCOUT || (s) == SRC_DEXCOM || (s) == SRC_LIBRE)
 
 // Dexcom Share regions
@@ -75,6 +76,8 @@ struct AppConfig {
   // Mi Band 2 emulation: AES key handed over by xDrip on first contact
   uint8_t  mibandKey[16]   = {0};
   uint8_t  mibandKeySet    = 0;
+  // xDrip4iOS: 10-character password generated on first contact (empty = none yet)
+  char     x4iPassword[12] = "";
   // OBB options
   uint8_t  obbStatusLine   = 0;    // subscribe to the optional status line
   uint8_t  bleSecureConn   = 1;    // LE Secure Connections for bonding (0 = legacy pairing), debug aid

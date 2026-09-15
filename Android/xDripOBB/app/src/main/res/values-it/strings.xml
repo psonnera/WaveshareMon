@@ -80,12 +80,17 @@
     <string name="src_label_miband">xDrip Mi Band (Bluetooth, senza app)</string>
     <string name="src_label_dexcom">Dexcom Share (Wi-Fi)</string>
     <string name="src_label_libre">LibreLinkUp (Wi-Fi)</string>
+    <string name="src_label_x4i">xDrip4iOS (Bluetooth, senza app)</string>
     <string name="src_short_obb">xDrip / AAPS via telefono</string>
     <string name="hint_src_obb">Questo telefono inoltra le letture di xDrip / AAPS al dispositivo via Bluetooth (il bridge qui sotto deve restare attivo). Associa il dispositivo dal bridge: Modalità associazione, poi accetta le richieste del telefono.</string>
     <string name="hint_src_miband">Il supporto Mi Band integrato in xDrip invia ogni lettura direttamente al dispositivo. In xDrip: Settings › Smart Watch Features › MiBand: Use MiBand Band ON, Mac address vuoto (la ricerca automatica trova «MI Band 2»), Send Readings ON, poi una volta Update BG manually.</string>
     <string name="hint_src_nightscout">Il dispositivo interroga il tuo sito Nightscout via Wi-Fi ogni 5 minuti. Usa un token di accesso in sola lettura.</string>
     <string name="hint_src_dexcom">Il dispositivo interroga Dexcom Share con l\'account di chi porta il sensore (non quello di un follower). Nell\'app Dexcom deve essere configurato almeno un follower.</string>
     <string name="hint_src_libre">Il dispositivo interroga LibreLinkUp con un account follower invitato dall\'app LibreLink del paziente. Se il dispositivo mostra «set ver X.Y.Z», inserisci qui quella versione.</string>
+    <string name="hint_src_x4i">Sull\'iPhone, in xDrip4iOS aggiungi un dispositivo Bluetooth di tipo M5Stack: l\'app trova «M5Stack» seguito dal nome di questo dispositivo, si associa da sola e invia ogni lettura, l\'ora e le unità. Nessuna nostra app è necessaria.</string>
+    <string name="x4i_info">Collegamento xDrip4iOS: %1$s%2$s</string>
+    <string name="x4i_password"> · password %1$s</string>
+    <string name="x4i_no_password"> · ancora nessuna password</string>
 
     <!-- ===== campi di configurazione (etichette delle chiavi del Config JSON del dispositivo) ===== -->
     <string name="field_src">Sorgente dati</string>
@@ -132,6 +137,7 @@
     <string name="cmd_testalarm">Prova allarme</string>
     <string name="cmd_setupoff">Disattiva modalità configurazione</string>
     <string name="cmd_mbforget">Dimentica la chiave Mi Band</string>
+    <string name="cmd_x4iforget">Reimposta la password xDrip4iOS</string>
     <string name="cmd_reboot">Riavvia</string>
     <string name="cmd_factory">Ripristino di fabbrica</string>
     <string name="factory_message">Cancella la configurazione, l\'associazione e la chiave Mi Band. Il dispositivo si riavvia in modalità configurazione.</string>

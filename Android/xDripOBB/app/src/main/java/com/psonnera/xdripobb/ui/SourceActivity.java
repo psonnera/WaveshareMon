@@ -178,7 +178,8 @@ public class SourceActivity extends AppCompatActivity implements DeviceSession.L
         int hint = ConfigFields.sourceHint(src);
         b.tvHint.setText(hint != 0 ? getString(hint) : "");
         b.bridgeCard.setVisibility(src == ConfigFields.SRC_OBB ? View.VISIBLE : View.GONE);
-        b.mibandCard.setVisibility(src == ConfigFields.SRC_MIBAND ? View.VISIBLE : View.GONE);
+        // the Mi Band card doubles as the xDrip4iOS card: link state and password
+        b.mibandCard.setVisibility(src == ConfigFields.SRC_MIBAND || src == ConfigFields.SRC_XDRIP4IOS ? View.VISIBLE : View.GONE);
         // a Wi-Fi source with no network yet: offer the phone's own network (asks once)
         if (ConfigFields.isWifi(src) && form.getText("ssid").trim().isEmpty()) autofill.ensure();
         refreshMiBand();
@@ -204,6 +205,12 @@ public class SourceActivity extends AppCompatActivity implements DeviceSession.L
     private void refreshMiBand() {
         JSONObject info = session.info();
         if (info == null) { b.tvMiband.setText(R.string.miband_connect_hint); return; }
+        if (form.selectedSource() == ConfigFields.SRC_XDRIP4IOS) {
+            String pw = info.optString("x4ipw", "");
+            b.tvMiband.setText(getString(R.string.x4i_info, info.optString("x4i", "?"),
+                    pw.isEmpty() ? getString(R.string.x4i_no_password) : getString(R.string.x4i_password, pw)));
+            return;
+        }
         b.tvMiband.setText(getString(R.string.miband_info, info.optString("mac", "?"), info.optString("miband", "?"),
                 getString(info.optBoolean("mbkey", false) ? R.string.miband_key_stored : R.string.miband_key_none)));
     }

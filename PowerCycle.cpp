@@ -13,6 +13,7 @@
 #include "Audio.h"
 #include "BleObbClient.h"
 #include "BleMiBand.h"
+#include "BleXdrip4iOS.h"
 #include "BleSetupServer.h"
 #include "WifiService.h"
 #include "NightscoutClient.h"
@@ -140,7 +141,7 @@ static int32_t computeSleepS(bool contacted, bool newReading) {
       s_rtc.failStreak++;
       s = RETRY_S;
     } else {
-      int lead = cfg.source == SRC_MIBAND ? PUSH_LEAD_S : POLL_LEAD_S;
+      int lead = (cfg.source == SRC_MIBAND || cfg.source == SRC_XDRIP4IOS) ? PUSH_LEAD_S : POLL_LEAD_S;
       time_t next = gs.readingUtc + READING_PERIOD_S + lead;
       while ((long)difftime(next, now) < MIN_SLEEP_S) next += READING_PERIOD_S;
       s = (int32_t)difftime(next, now);
@@ -169,6 +170,8 @@ static void statusForFailure(char *out, size_t len) {
     strlcpy(out, "xDrip: not found", len);
   } else if (cfg.source == SRC_MIBAND) {
     strlcpy(out, cfg.mibandKeySet ? "xDrip: no reading" : "xDrip: not paired", len);
+  } else if (cfg.source == SRC_XDRIP4IOS) {
+    strlcpy(out, cfg.x4iPassword[0] ? "xDrip4iOS: no reading" : "xDrip4iOS: not paired", len);
   } else if (!wifiConnected()) {
     snprintf(out, len, "Wi-Fi: %s", wifiFailText()[0] ? wifiFailText() : "no link");
   } else if (cfg.source == SRC_DEXCOM) {
@@ -191,6 +194,9 @@ void cycleSourceStatus(char *out, size_t len) {
       break;
     case SRC_MIBAND:
       snprintf(out, len, "xDrip Mi Band: %s", miBandStateName());
+      break;
+    case SRC_XDRIP4IOS:
+      snprintf(out, len, "xDrip4iOS: %s", xdrip4iosStateName());
       break;
     default:
       if (!cfg.wifiConfigured())        strlcpy(out, "Wi-Fi: not configured", len);
@@ -237,6 +243,7 @@ static void finishAndSleep(bool contacted) {
   // radios off before the (slow) panel refresh
   obbStop();
   miBandStop();
+  xdrip4iosStop();
   setupServerDropClients();
   wifiSleep();
   // alarms are evaluated once per wake, after the fetch, so a late reading
@@ -266,8 +273,8 @@ void cycleTick() {
   }
   if (cycleAwake() && !s_sleepNow) return;
 
-  uint32_t window = cfg.source == SRC_OBB    ? WINDOW_BLE_MS :
-                    cfg.source == SRC_MIBAND ? WINDOW_PUSH_MS : WINDOW_WIFI_MS;
+  uint32_t window = cfg.source == SRC_OBB ? WINDOW_BLE_MS :
+                    (cfg.source == SRC_MIBAND || cfg.source == SRC_XDRIP4IOS) ? WINDOW_PUSH_MS : WINDOW_WIFI_MS;
   bool contacted = gs.sourceSeq != s_seqAtWake;
   bool over = s_sleepNow || contacted || (millis() - s_wakeMs) > window;
   if (!over) return;

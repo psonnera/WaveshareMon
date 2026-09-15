@@ -11,6 +11,7 @@
 #include "Battery.h"
 #include "BleObbClient.h"
 #include "BleMiBand.h"
+#include "BleXdrip4iOS.h"
 #include "BleBonds.h"
 #include "WifiService.h"
 #include "DexcomShareClient.h"
@@ -43,7 +44,7 @@ static bool                  s_advertising = false;
 static volatile int          s_clients = 0;
 static volatile bool         s_logSubscribed = false;
 static uint32_t              s_logSent = 0;         // log entries already pushed (logTotal() based)
-static volatile uint8_t      s_pendingCmd = 0;      // 1 reboot, 2 factory, 3 warn, 4 alarm, 5 refresh, 6 snooze, 7 setupoff, 8 mbforget, 9 wifiscan, 10 update, 11 updcheck
+static volatile uint8_t      s_pendingCmd = 0;      // 1 reboot, 2 factory, 3 warn, 4 alarm, 5 refresh, 6 snooze, 7 setupoff, 8 mbforget, 9 wifiscan, 10 update, 11 updcheck, 12 x4iforget
 static volatile bool         s_cfgChanged = false;
 
 // the setup app talked to us: keep the power cycle from sleeping for a while
@@ -70,6 +71,8 @@ void setupBuildInfo(std::string &out) {
   d["mac"] = NimBLEDevice::getAddress().toString();     // for xDrip's Mi Band MAC field
   d["miband"] = miBandStateName();
   d["mbkey"] = cfg.mibandKeySet != 0;
+  d["x4i"] = xdrip4iosStateName();                      // xDrip4iOS link state
+  d["x4ipw"] = cfg.x4iPassword;                         // its password ("" = none yet), to re-add the device in the app
   d["live"] = gs.live;                                  // false: the panel shows its status page
   d["build"] = (uint32_t)WSMON_BUILD;                   // running build (YYYYMMDDnn, 0 = hand built)
   d["ota"] = otaStatus();                               // "" / checking / up to date / update N available / updating n% / failed: ...
@@ -206,6 +209,7 @@ static uint8_t commandCode(const char *s) {
   if (!strcmp(s, "wifiscan"))  return 9;
   if (!strcmp(s, "update"))    return 10;     // check the repository and install a newer build
   if (!strcmp(s, "updcheck"))  return 11;     // check only
+  if (!strcmp(s, "x4iforget")) return 12;     // xDrip4iOS: forget the password
   return 0;
 }
 
@@ -222,7 +226,7 @@ bool setupCommand(const char *cmd) {
 
 // advertising wanted: setup mode, or the Mi Band source waiting for xDrip
 static bool wantAdvertising() {
-  return s_advertising || cfg.source == SRC_MIBAND;
+  return s_advertising || cfg.source == SRC_MIBAND || cfg.source == SRC_XDRIP4IOS;
 }
 
 
@@ -238,6 +242,7 @@ class ServerCb : public NimBLEServerCallbacks {
     // so tell subscribed bonded clients to discover again.
     ble_svc_gatt_changed(0x0001, 0xffff);
     miBandOnConnect(info.getConnHandle());
+    xdrip4iosOnConnect(info.getConnHandle());
   }
   void onAuthenticationComplete(NimBLEConnInfo &info) override {
     // the phone's keys arrive after this event; rewrite the stored bond a
@@ -252,6 +257,7 @@ class ServerCb : public NimBLEServerCallbacks {
     s_logSubscribed = false;
     logAdd("BLE client disconnected");
     miBandOnDisconnect(info.getConnHandle());
+    xdrip4iosOnDisconnect(info.getConnHandle());
     if (wantAdvertising()) NimBLEDevice::startAdvertising();
   }
 } s_serverCb;
@@ -333,7 +339,8 @@ void setupServerBegin() {
   if (cfg.source == SRC_MIBAND) advData.addServiceUUID(NimBLEUUID((uint16_t)0xFEE0));
   advData.addServiceUUID(UUID_SVC);
   NimBLEAdvertisementData scanData;
-  scanData.setName(cfg.source == SRC_MIBAND ? "MI Band 2" : cfg.name());
+  scanData.setName(cfg.source == SRC_MIBAND    ? "MI Band 2" :
+                   cfg.source == SRC_XDRIP4IOS ? xdrip4iosName() : cfg.name());
   adv->setAdvertisementData(advData);
   adv->setScanResponseData(scanData);
 }
@@ -417,6 +424,7 @@ void setupServerTick() {
     case 9: wifiScanStart(); break;
     case 10: otaRequest(true); break;
     case 11: otaRequest(false); break;
+    case 12: xdrip4iosForgetPassword(); break;
   }
 }
 

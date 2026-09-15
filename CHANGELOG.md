@@ -2,6 +2,13 @@
 
 ## Unreleased — 1.1.0
 
+- New source **xDrip4iOS** (`src` 5): the "M5Stack" Bluetooth protocol of xDrip4iOS / xdripswift,
+  ported from M5Stack_xDripMon (`BleXdrip4iOS`). In this mode the device advertises as
+  `M5Stack WaveshareMon-XXXX` on its static random address (the app matches the name once, the
+  address afterwards); the app pairs with a device-generated password (Info `x4i`, `x4ipw`;
+  command `x4iforget` / serial `x4iforget` resets it) and pushes readings, trend, time, zone and
+  units; Nightscout and Wi-Fi settings sent by the app are stored. Same push window as Mi Band
+  in the sleep cycle. Setup page, app (en/fr/it) and docs list the source.
 - Setup page over Wi-Fi, for people without the Android app: in setup mode the device runs an
   open access point named like itself with a captive portal (`http://192.168.4.1`) and serves
   a single-page configuration site (all settings, Wi-Fi scan, commands including the firmware

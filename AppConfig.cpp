@@ -71,6 +71,7 @@ void AppConfig::load() {
     obbStatusLine  = p.getUChar("sline", obbStatusLine);
     bleSecureConn  = p.getUChar("blesc", bleSecureConn);
     p.getString("name", deviceName, sizeof(deviceName));
+    p.getString("x4ipw", x4iPassword, sizeof(x4iPassword));
     mibandKeySet   = p.getUChar("mbset", 0);
     if (p.getBytesLength("mbkey") == sizeof(mibandKey)) p.getBytes("mbkey", mibandKey, sizeof(mibandKey));
     else mibandKeySet = 0;
@@ -126,6 +127,7 @@ void AppConfig::save() {
   putStr(p, "llver", llVersion);
   chk(p.putUChar("tlsv", tlsVerify));
   putStr(p, "name", deviceName);
+  putStr(p, "x4ipw", x4iPassword);
   chk(p.putUChar("mbset", mibandKeySet));
   if (mibandKeySet) chk(p.putBytes("mbkey", mibandKey, sizeof(mibandKey))); else p.remove("mbkey");
   p.end();

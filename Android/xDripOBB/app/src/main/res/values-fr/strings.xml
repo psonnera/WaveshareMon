@@ -81,12 +81,17 @@
     <string name="src_label_miband">xDrip Mi Band (Bluetooth, sans application)</string>
     <string name="src_label_dexcom">Dexcom Share (Wi-Fi)</string>
     <string name="src_label_libre">LibreLinkUp (Wi-Fi)</string>
+    <string name="src_label_x4i">xDrip4iOS (Bluetooth, sans application)</string>
     <string name="src_short_obb">xDrip / AAPS via téléphone</string>
     <string name="hint_src_obb">Ce téléphone relaie les mesures xDrip / AAPS vers l\'appareil par Bluetooth (la passerelle ci-dessous doit rester active). Appairez l\'appareil depuis la passerelle : Mode appairage, puis acceptez les demandes du téléphone.</string>
     <string name="hint_src_miband">La prise en charge Mi Band intégrée à xDrip envoie chaque mesure directement à l\'appareil. Dans xDrip : Settings › Smart Watch Features › MiBand : Use MiBand Band ON, Mac address vide (la recherche automatique trouve « MI Band 2 »), Send Readings ON, puis Update BG manuellement une fois.</string>
     <string name="hint_src_nightscout">L\'appareil interroge votre site Nightscout par Wi-Fi toutes les 5 minutes. Utilisez un jeton d\'accès en lecture seule.</string>
     <string name="hint_src_dexcom">L\'appareil interroge Dexcom Share avec le compte de l\'utilisateur du capteur (pas celui d\'un abonné). Au moins un abonné doit être configuré dans l\'application Dexcom.</string>
     <string name="hint_src_libre">L\'appareil interroge LibreLinkUp avec un compte d\'abonné invité depuis l\'application LibreLink du patient. Si l\'appareil affiche « set ver X.Y.Z », saisissez cette version ici.</string>
+    <string name="hint_src_x4i">Sur l\'iPhone, dans xDrip4iOS, ajoutez un appareil Bluetooth de type M5Stack : l\'application trouve « M5Stack » suivi du nom de cet appareil, s\'appaire seule et envoie chaque mesure, l\'heure et les unités. Aucune application de notre part n\'est nécessaire.</string>
+    <string name="x4i_info">Liaison xDrip4iOS : %1$s%2$s</string>
+    <string name="x4i_password"> · mot de passe %1$s</string>
+    <string name="x4i_no_password"> · pas encore de mot de passe</string>
 
     <!-- ===== champs de configuration (libellés des clés du JSON Config de l'appareil) ===== -->
     <string name="field_src">Source de données</string>
@@ -133,6 +138,7 @@
     <string name="cmd_testalarm">Tester l\'alarme</string>
     <string name="cmd_setupoff">Quitter le mode configuration</string>
     <string name="cmd_mbforget">Oublier la clé Mi Band</string>
+    <string name="cmd_x4iforget">Réinitialiser le mot de passe xDrip4iOS</string>
     <string name="cmd_reboot">Redémarrer</string>
     <string name="cmd_factory">Réinitialisation d\'usine</string>
     <string name="factory_message">Efface la configuration, l\'appairage et la clé Mi Band. L\'appareil redémarre en mode configuration.</string>

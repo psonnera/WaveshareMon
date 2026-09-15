@@ -19,6 +19,7 @@
 #include "TimeService.h"
 #include "BleObbClient.h"
 #include "BleMiBand.h"
+#include "BleXdrip4iOS.h"
 #include "BleSetupServer.h"
 #include "WebSetup.h"
 #include "WifiService.h"
@@ -194,6 +195,9 @@ void EpdUi::drawHeader() {
     // black as long as xDrip has paired, red until the first key exchange
     bool ok = miBandIsAuthenticated() || (!cycleAwake() && cfg.mibandKeySet);
     drawIcon2x(x, 0, bluetooth_icon16x16, ok ? GxEPD_BLACK : GxEPD_RED);
+  } else if (cfg.source == SRC_XDRIP4IOS) {
+    bool ok = xdrip4iosIsAuthenticated() || (!cycleAwake() && cfg.x4iPassword[0]);
+    drawIcon2x(x, 0, bluetooth_icon16x16, ok ? GxEPD_BLACK : GxEPD_RED);
   } else {
     drawIcon2x(x, 0, wifi2_icon16x16, wifiConnected() ? GxEPD_BLACK : GxEPD_RED);
   }
@@ -367,6 +371,8 @@ void EpdUi::drawBottomBar(bool infoShown) {
     snprintf(txt, sizeof(txt), "xDrip: %s", obbStateName());
   else if (cfg.source == SRC_MIBAND && !miBandIsAuthenticated())
     snprintf(txt, sizeof(txt), "xDrip: %s", miBandStateName());
+  else if (cfg.source == SRC_XDRIP4IOS && !xdrip4iosIsAuthenticated())
+    snprintf(txt, sizeof(txt), "xDrip4iOS: %s", xdrip4iosStateName());
   else if (SRC_IS_WIFI(cfg.source) && !wifiConnected())
     snprintf(txt, sizeof(txt), "Wi-Fi: %s", wifiFailText()[0] ? wifiFailText() : wifiStateName());
   else if (cfg.source == SRC_DEXCOM && dxStatus()[0])
@@ -427,6 +433,7 @@ static const char *sourceTitle() {
   switch (cfg.source) {
     case SRC_OBB:        return "xDrip / AAPS via phone";
     case SRC_MIBAND:     return "xDrip Mi Band";
+    case SRC_XDRIP4IOS:  return "xDrip4iOS";
     case SRC_NIGHTSCOUT: return "Nightscout";
     case SRC_DEXCOM:     return "Dexcom Share";
     case SRC_LIBRE:      return "LibreLinkUp";
