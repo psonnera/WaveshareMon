@@ -90,15 +90,16 @@ it shows up.
 
 ### Updating over Wi-Fi
 
-A flashed device updates itself from this repository: the app's **Device** page has an
-**Update firmware** command (the serial console accepts `update`, and `update check` to only
-report). The device downloads `Binaries/WS_ePaper154G/update.inf`, compares the build number
-with its own, streams `WaveshareMon.ino.bin` into the spare OTA slot when the repository is
-newer and restarts. Progress goes to the log (`update: ...`) and to the `ota` field of the
-Info characteristic. A Bluetooth source (xDrip, Mi Band) needs a Wi-Fi network configured on
-the **Connection** page; the radio is switched on for the update only. On battery the install
-needs 30 % or more. Once a day, when Wi-Fi is up for the data source anyway, the device also
-checks `update.inf` and reports `update: build ... available` in the log without installing.
+The phone decides, never the device. While the app is connected it reads
+`Binaries/WS_ePaper154G/update.inf` from this repository (once an hour) and compares the build
+number with the one the device reports. A newer build shows on the home screen as *Firmware
+update available* with an **Update firmware** button (also a command on the **Device** page).
+On confirmation the device downloads `update.inf` and `WaveshareMon.ino.bin` itself, streams the
+image into the spare OTA slot and restarts; the app follows the `ota` field of the Info
+characteristic and reports the result. A Bluetooth source (xDrip, Mi Band) is asked for a Wi-Fi
+network first: the device joins it for the download only and is back on Bluetooth after the
+restart (the network stays stored for the next update). On battery the install needs 30 % or
+more. The serial console accepts `update` and `update check` (report only).
 
 Manual flashing with esptool (offsets for the ESP32-S3). Use esptool 5.x (`pip install esptool`)
 with `--before usb-reset`: the esptool 4.x bundled with the Arduino core loses the port when the

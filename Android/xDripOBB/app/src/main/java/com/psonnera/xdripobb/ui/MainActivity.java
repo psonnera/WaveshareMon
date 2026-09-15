@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -58,6 +59,7 @@ public class MainActivity extends AppCompatActivity implements DeviceSession.Lis
         b.btnDisplay.setOnClickListener(v -> startActivity(new Intent(this, DisplayActivity.class)));
         b.btnAlarms.setOnClickListener(v -> startActivity(new Intent(this, AlarmsActivity.class)));
         b.btnDevice.setOnClickListener(v -> startActivity(new Intent(this, DeviceActivity.class)));
+        b.btnUpdate.setOnClickListener(v -> FirmwareUpdateFlow.start(this, session));
 
         // the silent bridge restarts with the app when it was left on
         if (new ObbPrefs(this).serverEnabled())
@@ -105,8 +107,11 @@ public class MainActivity extends AppCompatActivity implements DeviceSession.Lis
             String wake = info.optString("wake", "");
             if (!wake.isEmpty()) s += getString(R.string.home_woke, wake, info.optInt("uptime", 0));
             if (!info.optBoolean("live", true)) s += getString(R.string.home_status_page);
+            if (session.updateAvailable()) s += getString(R.string.home_update_available, session.latestBuild());
             b.tvDevice.setText(s);
         }
+        // the phone checked the repository and found a newer firmware: offer it, never install by itself
+        b.btnUpdate.setVisibility(connected && session.updateAvailable() ? View.VISIBLE : View.GONE);
 
         // 2. data source
         int src = cfg != null ? cfg.optInt("src", -1) : (info != null ? info.optInt("src", -1) : -1);

@@ -2,12 +2,14 @@
 
 ## Unreleased — 1.1.0
 
-- Firmware update over Wi-Fi (OTA): the app's **Update firmware** command (or serial `update`)
-  fetches `Binaries/WS_ePaper154G/update.inf` from the GitHub repository, compares the build
-  number with the running one (`WSMON_BUILD`, set by `Scripts/build.ps1` from `update.inf`) and
-  streams the image into the spare OTA slot. Progress in the log and the Info `ota` field; a
-  Bluetooth source switches Wi-Fi on for the update only; on battery the install needs 30 %.
-  Once a day the device checks `update.inf` when Wi-Fi is up anyway and reports a newer build.
+- Firmware update over Wi-Fi (OTA), decided on the phone: the app reads
+  `Binaries/WS_ePaper154G/update.inf` from the GitHub repository, shows *Firmware update
+  available* with an **Update firmware** button when the device's build (Info `build`, from
+  `WSMON_BUILD` set by `Scripts/build.ps1`) is older, asks a Bluetooth-source device for a Wi-Fi
+  network (used for the download only, back on Bluetooth after the restart), sends `update` and
+  follows the Info `ota` field to a result dialog. The device streams the image into the spare
+  OTA slot and restarts; it never contacts the repository on its own. On battery the install
+  needs 30 %. Serial: `update`, `update check`.
 - Wi-Fi setup: the bottom line and the app now say *why* a join failed (`Wi-Fi: network not
   found`, `Wi-Fi: wrong password`, else the ESP32 reason code) instead of `Wi-Fi: failed`; the
   Info JSON carries it as `wifierr`. New `wifiscan` command (serial and BLE) and Scan

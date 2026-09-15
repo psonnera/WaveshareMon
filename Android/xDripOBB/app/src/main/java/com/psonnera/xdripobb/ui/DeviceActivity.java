@@ -52,12 +52,7 @@ public class DeviceActivity extends AppCompatActivity implements DeviceSession.L
                             .setNegativeButton(android.R.string.cancel, null)
                             .show();
                 } else if (c.id.equals(ConfigFields.CMD_UPDATE)) {
-                    new AlertDialog.Builder(this)
-                            .setTitle(R.string.cmd_update)
-                            .setMessage(R.string.update_message)
-                            .setPositiveButton(R.string.update_confirm, (d, w) -> session.sendCommand(ConfigFields.CMD_UPDATE))
-                            .setNegativeButton(android.R.string.cancel, null)
-                            .show();
+                    FirmwareUpdateFlow.start(this, session);
                 } else session.sendCommand(c.id);
             });
             b.commands.addView(chip);

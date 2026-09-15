@@ -10,6 +10,7 @@ package com.psonnera.xdripobb.setup;
 
 import com.psonnera.xdripobb.R;
 import com.psonnera.xdripobb.obb.ObbPrefs;
+import com.psonnera.xdripobb.wifi.FirmwareCheck;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.os.Handler;
@@ -56,6 +57,12 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
     private int wifiScanSerial = 0;          // bumps on every result, so a page can tell a new one
     private int scanPolls = 0;
 
+    // newest firmware build in the repository, fetched by the phone (the device never asks by itself)
+    private static final long LATEST_CHECK_MS = 60 * 60_000;
+    private long latestBuild = 0;
+    private long latestCheckedAt = 0;
+    private boolean checkingLatest = false;
+
     private final Runnable infoPoll = new Runnable() {
         @Override
         public void run() {
@@ -86,6 +93,11 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
     public int wifiScanSerial() { return wifiScanSerial; }
     public boolean supportsWifiScan() { return client.isReady() && client.hasWifiScan(); }
     public long infoAgeMs() { return infoAt == 0 ? -1 : System.currentTimeMillis() - infoAt; }
+    /** build number the device reports (0 = older firmware or a hand-built one) */
+    public long deviceBuild() { return info != null ? info.optLong("build", 0) : 0; }
+    /** newest build in the repository, 0 until the phone managed to read it */
+    public long latestBuild() { return latestBuild; }
+    public boolean updateAvailable() { return latestBuild > 0 && deviceBuild() > 0 && latestBuild > deviceBuild(); }
     public List<String> log() { synchronized (log) { return new ArrayList<>(log); } }
     public Map<String, BluetoothDevice> foundDevices() { return new LinkedHashMap<>(found); }
     public String foundName(String address) { String n = foundNames.get(address); return n != null ? n : "?"; }
@@ -192,6 +204,26 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
         try { info = new JSONObject(json); infoAt = System.currentTimeMillis(); }
         catch (JSONException e) { addLog("info parse error: " + e.getMessage()); }
         changed();
+        maybeCheckLatest();
+    }
+
+    /** once an hour while a device with a build number is connected: read the repository's update.inf */
+    private void maybeCheckLatest() {
+        if (checkingLatest || deviceBuild() <= 0) return;
+        if (latestCheckedAt != 0 && System.currentTimeMillis() - latestCheckedAt < LATEST_CHECK_MS) return;
+        checkingLatest = true;
+        FirmwareCheck.run((build, error) -> {
+            checkingLatest = false;
+            latestCheckedAt = System.currentTimeMillis();
+            if (build > 0) {
+                boolean was = updateAvailable();
+                latestBuild = build;
+                if (!was && updateAvailable()) addLog(app.getString(R.string.log_update_available, build));
+            } else if (error != null) {
+                addLog("firmware check: " + error);
+            }
+            changed();
+        });
     }
 
     @Override

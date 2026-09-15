@@ -145,8 +145,24 @@
     <string name="factory_message">Erases the configuration, the pairing and the Mi Band key. The device restarts in setup mode.</string>
     <string name="factory_confirm">Reset</string>
     <string name="cmd_update">Update firmware</string>
-    <string name="update_message">Downloads the latest firmware from the GitHub repository over Wi-Fi and restarts the device. Nothing happens when it is already up to date. Follow the progress in the log below.</string>
+    <string name="update_message">The device downloads the latest firmware from the GitHub repository over its Wi-Fi network and restarts. Nothing happens when it is already up to date.</string>
     <string name="update_confirm">Update</string>
+    <string name="update_not_connected">Connect to the device first.</string>
+    <string name="update_wifi_title">Wi-Fi for the update</string>
+    <string name="update_wifi_message">The device reads its glucose over Bluetooth. It joins this Wi-Fi network only to download the firmware and is back on Bluetooth after the restart.</string>
+    <string name="update_wifi_pass_stored">Wi-Fi password (stored, leave empty to keep it)</string>
+    <string name="update_progress_title">Updating firmware</string>
+    <string name="update_progress_sent">Command sent, waiting for the device…</string>
+    <string name="update_progress_status">Device: %1$s</string>
+    <string name="update_hide">Hide</string>
+    <string name="update_result_title">Firmware update</string>
+    <string name="update_done">The new firmware is installed and the device is restarting. It shows up again in a moment (setup mode stays on for 10 minutes after a restart).</string>
+    <string name="update_lost">The Bluetooth link dropped before the device reported any progress. The device carries on by itself: reconnect and check its build number.</string>
+    <string name="update_uptodate">The device already runs the latest firmware.</string>
+    <string name="update_failed">The update failed: %1$s</string>
+    <string name="update_timeout">No result from the device after 6 minutes. Check the log.</string>
+    <string name="home_update_available">\nFirmware update available: build %1$d</string>
+    <string name="log_update_available">firmware: build %1$d is available in the repository</string>
     <string name="device_reading">reading…</string>
 
     <!-- ===== data source page: Mi Band and bridge cards ===== -->

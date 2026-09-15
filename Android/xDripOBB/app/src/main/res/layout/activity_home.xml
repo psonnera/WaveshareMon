@@ -43,6 +43,13 @@
                     android:layout_marginTop="4dp"
                     android:text="@string/home_not_connected" />
                 <Button
+                    android:id="@+id/btnUpdate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/cmd_update"
+                    android:visibility="gone" />
+                <Button
                     android:id="@+id/btnConnection"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

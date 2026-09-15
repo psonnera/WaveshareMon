@@ -138,8 +138,24 @@
     <string name="factory_message">Efface la configuration, l\'appairage et la clé Mi Band. L\'appareil redémarre en mode configuration.</string>
     <string name="factory_confirm">Réinitialiser</string>
     <string name="cmd_update">Mettre à jour le firmware</string>
-    <string name="update_message">Télécharge le dernier firmware depuis le dépôt GitHub par Wi-Fi et redémarre l\'appareil. Rien ne se passe s\'il est déjà à jour. Suivez la progression dans le journal ci-dessous.</string>
+    <string name="update_message">L\'appareil télécharge le dernier firmware depuis le dépôt GitHub par son réseau Wi-Fi et redémarre. Rien ne se passe s\'il est déjà à jour.</string>
     <string name="update_confirm">Mettre à jour</string>
+    <string name="update_not_connected">Connectez-vous d\'abord à l\'appareil.</string>
+    <string name="update_wifi_title">Wi-Fi pour la mise à jour</string>
+    <string name="update_wifi_message">L\'appareil reçoit sa glycémie par Bluetooth. Il rejoint ce réseau Wi-Fi uniquement pour télécharger le firmware et revient en Bluetooth après le redémarrage.</string>
+    <string name="update_wifi_pass_stored">Mot de passe Wi-Fi (enregistré, laisser vide pour le garder)</string>
+    <string name="update_progress_title">Mise à jour du firmware</string>
+    <string name="update_progress_sent">Commande envoyée, en attente de l\'appareil…</string>
+    <string name="update_progress_status">Appareil : %1$s</string>
+    <string name="update_hide">Masquer</string>
+    <string name="update_result_title">Mise à jour du firmware</string>
+    <string name="update_done">Le nouveau firmware est installé et l\'appareil redémarre. Il réapparaît dans un instant (le mode configuration reste actif 10 minutes après un redémarrage).</string>
+    <string name="update_lost">La liaison Bluetooth s\'est interrompue avant que l\'appareil ne signale une progression. L\'appareil continue seul : reconnectez-vous et vérifiez son numéro de build.</string>
+    <string name="update_uptodate">L\'appareil a déjà le dernier firmware.</string>
+    <string name="update_failed">La mise à jour a échoué : %1$s</string>
+    <string name="update_timeout">Aucun résultat de l\'appareil après 6 minutes. Consultez le journal.</string>
+    <string name="home_update_available">\nMise à jour du firmware disponible : build %1$d</string>
+    <string name="log_update_available">firmware : le build %1$d est disponible dans le dépôt</string>
     <string name="device_reading">lecture…</string>
 
     <!-- ===== page source de données : cartes Mi Band et passerelle ===== -->

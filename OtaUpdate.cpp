@@ -22,7 +22,6 @@
 #define OTA_WAIT_WIFI_MS   60000UL           // give a cold join this long
 #define OTA_HOLD_MS        (5UL * 60 * 1000) // stay awake while a request runs
 #define OTA_MIN_BATTERY    30                // % needed to install on battery
-#define OTA_CHECK_PERIOD_S 86400             // automatic check: once a day
 
 extern EpdUi ui;
 extern Battery battery;
@@ -34,7 +33,6 @@ static bool     s_busy = false;
 static char     s_status[40] = "";
 
 RTC_DATA_ATTR static uint32_t s_latest = 0;        // build on the server, survives deep sleep
-RTC_DATA_ATTR static time_t   s_lastCheckUtc = 0;  // last automatic check
 
 static void setStatus(const char *s) { strlcpy(s_status, s, sizeof(s_status)); }
 
@@ -61,8 +59,6 @@ static bool fetchLatest(char *err, size_t errLen) {
   for (unsigned i = 0; i < body.length(); i++)
     if (!isdigit(body[i])) { snprintf(err, errLen, "bad update.inf"); return false; }
   s_latest = (uint32_t)strtoul(body.c_str(), nullptr, 10);
-  time_t now = time(nullptr);
-  if (now > 1600000000) s_lastCheckUtc = now;
   return true;
 }
 
@@ -133,24 +129,7 @@ uint32_t otaLatestBuild() { return s_latest; }
 void otaTick() {
   if (s_busy) return;
 
-  if (!s_req) {
-    // automatic daily check while Wi-Fi is up for the source anyway: one small
-    // GET, the result shows in the app's Info and the log
-    time_t now = time(nullptr);
-    if (wifiConnected() && now > 1600000000 &&
-        (s_lastCheckUtc == 0 || now - s_lastCheckUtc >= OTA_CHECK_PERIOD_S)) {
-      s_busy = true;
-      char err[40];
-      if (fetchLatest(err, sizeof(err))) {
-        if (s_latest > WSMON_BUILD) {
-          snprintf(s_status, sizeof(s_status), "update %lu available", (unsigned long)s_latest);
-          logAdd("update: build %lu available", (unsigned long)s_latest);
-        } else setStatus("up to date");
-      } else s_lastCheckUtc = now;           // failed: try again tomorrow, not every wake
-      s_busy = false;
-    }
-    return;
-  }
+  if (!s_req) return;                       // nothing to do: the phone decides when to check or install
 
   if (!wifiConnected()) {
     if (wifiState() == WS_WIFI_FAILED || millis() - s_reqMs > OTA_WAIT_WIFI_MS) {

@@ -137,8 +137,24 @@
     <string name="factory_message">Cancella la configurazione, l\'associazione e la chiave Mi Band. Il dispositivo si riavvia in modalità configurazione.</string>
     <string name="factory_confirm">Ripristina</string>
     <string name="cmd_update">Aggiorna firmware</string>
-    <string name="update_message">Scarica l\'ultimo firmware dal repository GitHub tramite Wi-Fi e riavvia il dispositivo. Non succede nulla se è già aggiornato. Segui l\'avanzamento nel registro qui sotto.</string>
+    <string name="update_message">Il dispositivo scarica l\'ultimo firmware dal repository GitHub tramite la sua rete Wi-Fi e si riavvia. Non succede nulla se è già aggiornato.</string>
     <string name="update_confirm">Aggiorna</string>
+    <string name="update_not_connected">Connettiti prima al dispositivo.</string>
+    <string name="update_wifi_title">Wi-Fi per l\'aggiornamento</string>
+    <string name="update_wifi_message">Il dispositivo riceve la glicemia via Bluetooth. Si collega a questa rete Wi-Fi solo per scaricare il firmware e torna al Bluetooth dopo il riavvio.</string>
+    <string name="update_wifi_pass_stored">Password Wi-Fi (memorizzata, lascia vuoto per mantenerla)</string>
+    <string name="update_progress_title">Aggiornamento del firmware</string>
+    <string name="update_progress_sent">Comando inviato, in attesa del dispositivo…</string>
+    <string name="update_progress_status">Dispositivo: %1$s</string>
+    <string name="update_hide">Nascondi</string>
+    <string name="update_result_title">Aggiornamento del firmware</string>
+    <string name="update_done">Il nuovo firmware è installato e il dispositivo si sta riavviando. Riappare tra un istante (la modalità configurazione resta attiva per 10 minuti dopo un riavvio).</string>
+    <string name="update_lost">Il collegamento Bluetooth si è interrotto prima che il dispositivo segnalasse un avanzamento. Il dispositivo continua da solo: riconnettiti e controlla il numero di build.</string>
+    <string name="update_uptodate">Il dispositivo ha già l\'ultimo firmware.</string>
+    <string name="update_failed">L\'aggiornamento non è riuscito: %1$s</string>
+    <string name="update_timeout">Nessun risultato dal dispositivo dopo 6 minuti. Controlla il registro.</string>
+    <string name="home_update_available">\nAggiornamento del firmware disponibile: build %1$d</string>
+    <string name="log_update_available">firmware: il build %1$d è disponibile nel repository</string>
     <string name="device_reading">lettura…</string>
 
     <!-- ===== pagina sorgente dati: schede Mi Band e bridge ===== -->

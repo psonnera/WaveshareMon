@@ -6,8 +6,11 @@
   number, YYYYMMDDnn) and the application image. A check downloads update.inf
   and compares it with WSMON_BUILD; an install streams the image into the
   spare OTA slot (the 8 MB partition table has two) and reboots into it.
-  Requested from the serial console ("update", "update check"), the setup
-  app ("update", "updcheck" commands) or the daily automatic check.
+  The device never contacts the server on its own: the phone checks the
+  repository, tells the user, and sends the "update" command (or "updcheck"
+  to only report); the serial console has "update" / "update check". A
+  Bluetooth source uses Wi-Fi for the update only (credentials written by the
+  app beforehand) and is back on Bluetooth after the reboot.
 
   Copyright (C) 2026 Patrick Sonnerat
 */
@@ -22,8 +25,7 @@
 // check the server; install when it has a newer build and install is true.
 // Brings Wi-Fi up when the source does not use it, holds the device awake.
 void otaRequest(bool install);
-// from loop(): runs a pending request (blocks during the download) and the
-// daily automatic check when Wi-Fi is up anyway
+// from loop(): runs a pending request (blocks during the download)
 void otaTick();
 bool otaBusy();
 // "" idle, "checking", "up to date", "update <build> available",
