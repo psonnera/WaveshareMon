@@ -8,7 +8,7 @@ Bluetooth and, for the xDrip / AAPS source, relays the phone's readings with the
 WaveshareMon shows the same information as
 [M5Stack_xDripMon](https://github.com/psonnera/M5Stack_xDripMon) and
 [M5_NightscoutMon](https://github.com/psonnera/M5_NightscoutMon): current glucose, trend arrow,
-delta, reading age, a 4-hour graph and alarms. It accepts five data sources:
+delta, reading age, a 2-hour graph and alarms. It accepts five data sources:
 
 | Source | Transport | Notes |
 |---|---|---|
