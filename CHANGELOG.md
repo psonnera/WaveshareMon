@@ -2,6 +2,13 @@
 
 ## Unreleased — 1.1.0
 
+- Setup page over Wi-Fi, for people without the Android app: in setup mode the device runs an
+  open access point named like itself with a captive portal (`http://192.168.4.1`) and serves
+  a single-page configuration site (all settings, Wi-Fi scan, commands including the firmware
+  update, live log) built on the same JSON as the BLE setup service (`WebSetup`, `WebPage.h`;
+  `setupBuildInfo/Config`, `setupApplyConfig`, `setupCommand` shared with `BleSetupServer`).
+  The same page is served on the station address of a connected Wi-Fi source. The access point
+  goes away with setup mode. The e-paper status page names the network and the address.
 - Firmware update over Wi-Fi (OTA), decided on the phone: the app reads
   `Binaries/WS_ePaper154G/update.inf` from the GitHub repository, shows *Firmware update
   available* with an **Update firmware** button when the device's build (Info `build`, from

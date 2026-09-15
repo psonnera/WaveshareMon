@@ -42,6 +42,7 @@
 #include "EpdUi.h"
 #include "PowerCycle.h"
 #include "OtaUpdate.h"
+#include "WebSetup.h"
 #include "DebugInject.h"
 #include "Log.h"
 #include <Wire.h>
@@ -221,6 +222,7 @@ void loop() {
   // sleeping modes evaluate the alarms once, after the fetch (PowerCycle)
   if (cycleAwake()) alarms.tick();
   setupServerTick();
+  webSetupTick();                             // Wi-Fi setup page + access point while in setup mode
   otaTick();                                  // firmware update check / install (blocks while installing)
 
   cycleTick();                                // may deep-sleep and not return

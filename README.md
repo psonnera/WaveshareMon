@@ -57,7 +57,8 @@ only if something changed, and sleeps again. The next wake is re-anchored on the
 latest reading: 15 s after the expected next reading for the polling sources, 12 s before it in
 Mi Band mode. When no reading comes it retries five times a minute apart, then falls back to the
 5-minute grid. Alarms repeat and snooze on the wall clock and wake the device when due. Bluetooth
-sources never turn Wi-Fi on; Wi-Fi sources start Bluetooth only in setup mode.
+sources turn Wi-Fi on only for a firmware update; Wi-Fi sources start Bluetooth only in setup
+mode. Setup mode also runs the open setup access point (see *First setup*).
 
 The device stays awake (always-on loop, setup advertising) for 10 minutes after a cold boot,
 permanently while unconfigured, in setup mode (BOOT held 3 s), while the app reads or writes
@@ -119,9 +120,18 @@ python -m esptool --chip esp32s3 --port COM4 --baud 921600 --before usb-reset wr
 1. Flash the firmware. The device shows a splash screen with its name (`WaveshareMon-XXXX`) and
    advertises for setup: permanently while unconfigured, 10 minutes after every cold boot
    otherwise, or after holding BOOT for 3 s.
-2. Install the **WaveShareMon** app (`Android/xDripOBB`, see its README). It opens on the setup
-   screen: press **Scan**, tap the device, accept the pairing prompt(s) (Android 11 asks twice),
-   pick the **Data source** and fill in the fields it shows — units, thresholds and alarm
+2. Configure it either from the Android app or from any browser:
+   - **Android app**: install **WaveShareMon** (`Android/xDripOBB`, see its README). It opens on
+     the setup screen: press **Scan**, tap the device, accept the pairing prompt(s) (Android 11
+     asks twice).
+   - **Any computer, tablet or phone**: while in setup mode the device also runs an open Wi-Fi
+     access point named like itself (`WaveshareMon-XXXX`). Join it and open `http://192.168.4.1`
+     (most systems pop the page up by themselves). The page offers the same settings, commands
+     and log as the app; it needs no login and exists only during setup mode. A device already
+     joined to your Wi-Fi as a source serves the same page on its LAN address (in the log and
+     the app's info). The Bluetooth bridge source still needs the Android app for pairing.
+
+   Pick the **Data source** and fill in the fields it shows — units, thresholds and alarm
    settings are common to all sources:
    - **xDrip / AAPS through this phone (Bluetooth)**: nothing else (optionally *Show OBB status
      line*).

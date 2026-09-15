@@ -20,6 +20,7 @@
 #include "BleObbClient.h"
 #include "BleMiBand.h"
 #include "BleSetupServer.h"
+#include "WebSetup.h"
 #include "WifiService.h"
 #include "DexcomShareClient.h"
 #include "LibreLinkUpClient.h"
@@ -443,12 +444,18 @@ void EpdUi::drawStatusPage() {
   drawText(line, W / 2, 58, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
 
   if (setupServerAdvertising()) {
-    display.fillRoundRect(6, 80, W - 12, 42, 6, GxEPD_YELLOW);
-    drawText("Setup mode", W / 2, 84, &FreeSansBold9pt7b, 1, GxEPD_BLACK, AL_CENTER);
-    drawText("open the WaveShareMon app", W / 2, 102, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+    // the Android app over Bluetooth, or any browser through the open access
+    // point the device runs while in setup mode (WebSetup)
+    display.fillRoundRect(6, 78, W - 12, 66, 6, GxEPD_YELLOW);
+    drawText("Setup mode", W / 2, 81, &FreeSansBold9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+    drawText("app  or  Wi-Fi network:", W / 2, 97, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+    drawText(cfg.name(), W / 2, 112, &FreeSansBold9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+    char url[40];
+    snprintf(url, sizeof(url), "and open %s", webSetupApIp());
+    drawText(url, W / 2, 127, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
   }
 
-  drawText(sourceTitle(), W / 2, 132, &FreeSansBold9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+  drawText(sourceTitle(), W / 2, 148, &FreeSansBold9pt7b, 1, GxEPD_BLACK, AL_CENTER);
   cycleSourceStatus(line, sizeof(line));
   // "source: state" -> the state part fits below the title
   const char *state = strchr(line, ':');
@@ -456,8 +463,8 @@ void EpdUi::drawStatusPage() {
   while (*state == ' ') state++;
   bool bad = strstr(line, "fail") || strstr(line, "bad") || strstr(line, "not ") || strstr(line, "error") ||
              strstr(line, "HTTP") || strstr(line, "locked") || strstr(line, "no ");
-  drawText(state, W / 2, 150, &FreeSans9pt7b, 1, bad ? GxEPD_RED : GxEPD_BLACK, AL_CENTER);
-  drawText("waiting for the first reading", W / 2, 178, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+  drawText(state, W / 2, 164, &FreeSans9pt7b, 1, bad ? GxEPD_RED : GxEPD_BLACK, AL_CENTER);
+  drawText("waiting for the first reading", W / 2, 182, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
 }
 
 void EpdUi::render() {

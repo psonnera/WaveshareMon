@@ -17,6 +17,11 @@ void wifiApplyConfig();        // after a config change (reconnect / disconnect)
 // keep the station up although the source does not need it (firmware update
 // on a Bluetooth source); needs an SSID. off releases it again.
 void wifiHold(bool on);
+// open access point named after the device (192.168.4.1) for the setup page,
+// next to the station when one is wanted
+void wifiApStart();
+void wifiApStop();
+bool wifiApActive();
 void wifiSleep();              // radio off before deep sleep
 WifiState wifiState();
 const char *wifiStateName();

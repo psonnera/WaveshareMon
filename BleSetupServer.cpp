@@ -46,9 +46,12 @@ static uint32_t              s_logSent = 0;         // log entries already pushe
 static volatile uint8_t      s_pendingCmd = 0;      // 1 reboot, 2 factory, 3 warn, 4 alarm, 5 refresh, 6 snooze, 7 setupoff, 8 mbforget, 9 wifiscan, 10 update, 11 updcheck
 static volatile bool         s_cfgChanged = false;
 
+// the setup app talked to us: keep the power cycle from sleeping for a while
+#define APP_HOLD_MS 60000UL
+
 // ---- JSON builders ------------------------------------------------------------
 
-static void buildInfo(std::string &out) {
+void setupBuildInfo(std::string &out) {
   JsonDocument d;
   d["fw"] = WSMON_VERSION;
   d["name"] = cfg.name();
@@ -77,7 +80,7 @@ static void buildInfo(std::string &out) {
   serializeJson(d, out);
 }
 
-static void buildConfig(std::string &out) {
+void setupBuildConfig(std::string &out) {
   JsonDocument d;
   d["src"] = cfg.source;
   d["units"] = cfg.units;
@@ -183,6 +186,38 @@ static bool applyConfig(const char *json, size_t len) {
   return true;
 }
 
+bool setupApplyConfig(const char *json, size_t len, const char *who) {
+  if (!applyConfig(json, len)) return false;
+  logAdd("config updated by %s", who);
+  s_cfgChanged = true;                  // setupServerTick() applies the rest (Wi-Fi, TZ, redraw)
+  return true;
+}
+
+// the Command characteristic's words -> the deferred command run by setupServerTick()
+static uint8_t commandCode(const char *s) {
+  if (!strcmp(s, "reboot"))    return 1;
+  if (!strcmp(s, "factory"))   return 2;
+  if (!strcmp(s, "testwarn"))  return 3;
+  if (!strcmp(s, "testalarm")) return 4;
+  if (!strcmp(s, "refresh"))   return 5;
+  if (!strcmp(s, "snooze"))    return 6;
+  if (!strcmp(s, "setupoff"))  return 7;
+  if (!strcmp(s, "mbforget"))  return 8;
+  if (!strcmp(s, "wifiscan"))  return 9;
+  if (!strcmp(s, "update"))    return 10;     // check the repository and install a newer build
+  if (!strcmp(s, "updcheck"))  return 11;     // check only
+  return 0;
+}
+
+bool setupCommand(const char *cmd) {
+  uint8_t c = commandCode(cmd);
+  if (!c) return false;
+  logAdd("cmd: %s", cmd);
+  cycleStayAwake(APP_HOLD_MS);
+  s_pendingCmd = c;
+  return true;
+}
+
 // ---- callbacks (NimBLE host task) ---------------------------------------------
 
 // advertising wanted: setup mode, or the Mi Band source waiting for xDrip
@@ -190,8 +225,6 @@ static bool wantAdvertising() {
   return s_advertising || cfg.source == SRC_MIBAND;
 }
 
-// the setup app talked to us: keep the power cycle from sleeping for a while
-#define APP_HOLD_MS 60000UL
 
 static uint16_t s_repersistHandle = BLE_HS_CONN_HANDLE_NONE;
 static uint32_t s_repersistAtMs = 0;
@@ -226,40 +259,25 @@ class ServerCb : public NimBLEServerCallbacks {
 class InfoCb : public NimBLECharacteristicCallbacks {
   void onRead(NimBLECharacteristic *c, NimBLEConnInfo &) override {
     cycleStayAwake(APP_HOLD_MS);
-    std::string s; buildInfo(s); c->setValue(s);
+    std::string s; setupBuildInfo(s); c->setValue(s);
   }
 } s_infoCb;
 
 class CfgCb : public NimBLECharacteristicCallbacks {
   void onRead(NimBLECharacteristic *c, NimBLEConnInfo &) override {
     cycleStayAwake(APP_HOLD_MS);
-    std::string s; buildConfig(s); c->setValue(s);
+    std::string s; setupBuildConfig(s); c->setValue(s);
   }
   void onWrite(NimBLECharacteristic *c, NimBLEConnInfo &) override {
     NimBLEAttValue v = c->getValue();
-    if (applyConfig((const char *)v.data(), v.length())) {
-      logAdd("config updated by app");
-      s_cfgChanged = true;
-    }
+    setupApplyConfig((const char *)v.data(), v.length(), "app");
   }
 } s_cfgCb;
 
 class CmdCb : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic *c, NimBLEConnInfo &) override {
     std::string s = c->getValue();
-    logAdd("cmd: %s", s.c_str());
-    cycleStayAwake(APP_HOLD_MS);
-    if      (s == "reboot")    s_pendingCmd = 1;
-    else if (s == "factory")   s_pendingCmd = 2;
-    else if (s == "testwarn")  s_pendingCmd = 3;
-    else if (s == "testalarm") s_pendingCmd = 4;
-    else if (s == "refresh")   s_pendingCmd = 5;
-    else if (s == "snooze")    s_pendingCmd = 6;
-    else if (s == "setupoff")  s_pendingCmd = 7;
-    else if (s == "mbforget")  s_pendingCmd = 8;
-    else if (s == "wifiscan")  s_pendingCmd = 9;
-    else if (s == "update")    s_pendingCmd = 10;      // check the repository and install a newer build
-    else if (s == "updcheck")  s_pendingCmd = 11;      // check only
+    if (!setupCommand(s.c_str())) logAdd("cmd: unknown %s", s.c_str());
   }
 } s_cmdCb;
 

@@ -30,4 +30,14 @@ void setupServerTick();
 // disconnect every BLE client (before deep sleep)
 void setupServerDropClients();
 
+// The same JSON and commands, shared with the Wi-Fi setup page (WebSetup.cpp)
+// so both ways of configuring the device stay identical.
+#include <string>
+void setupBuildInfo(std::string &out);
+void setupBuildConfig(std::string &out);
+// applies and saves a Config JSON (any subset of keys); who = "app" / "web"
+bool setupApplyConfig(const char *json, size_t len, const char *who);
+// queues a Command-characteristic command ("reboot", "update", ...); false = unknown
+bool setupCommand(const char *cmd);
+
 #endif

@@ -98,10 +98,12 @@ static void failTextFor(uint8_t reason, char *out, size_t len) {
   }
 }
 
+static bool s_apOn = false;      // setup access point up (WebSetup)
+
 static void startConnect() {
   hookEvents();
   WiFi.persistent(false);                // no NVS writes on every join
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(s_apOn ? WIFI_AP_STA : WIFI_STA);
   WiFi.setHostname(cfg.name());
   WiFi.setAutoReconnect(true);
   s_lastReason = 0;
@@ -151,21 +153,45 @@ void wifiApplyConfig() {
 }
 
 void wifiSleep() {
-  if (!s_wanted) return;
+  if (!s_wanted && !s_apOn) return;
   WiFi.disconnect(false);
   WiFi.mode(WIFI_OFF);
   s_wanted = false;
+  s_apOn = false;
   setState(WS_WIFI_OFF);
 }
+
+// ---- setup access point ---------------------------------------------------------
+
+void wifiApStart() {
+  if (s_apOn) return;
+  hookEvents();
+  WiFi.persistent(false);
+  WiFi.mode(s_wanted ? WIFI_AP_STA : WIFI_AP);
+  // open network: it exists for the setup window only. With a station joined
+  // the driver moves the AP to the station's channel by itself.
+  if (!WiFi.softAP(cfg.name())) { logAdd("wifi: AP failed"); return; }
+  s_apOn = true;
+  logAdd("wifi: AP %s", cfg.name());
+}
+
+void wifiApStop() {
+  if (!s_apOn) return;
+  s_apOn = false;
+  WiFi.softAPdisconnect(true);           // drops the AP bit, keeps a wanted station
+  if (!s_wanted && !s_scanActive) WiFi.mode(WIFI_OFF);
+}
+
+bool wifiApActive() { return s_apOn; }
 
 // ---- scan -----------------------------------------------------------------------
 
 void wifiScanStart() {
   if (s_scanActive) return;
   hookEvents();
-  if (WiFi.getMode() == WIFI_OFF) {
+  if (!(WiFi.getMode() & WIFI_MODE_STA)) {
     WiFi.persistent(false);
-    WiFi.mode(WIFI_STA);
+    WiFi.mode(s_apOn ? WIFI_AP_STA : WIFI_STA);
     s_scanRadioOn = true;
   }
   // the driver refuses to scan while a join is in progress: give the join up,
@@ -174,7 +200,7 @@ void wifiScanStart() {
   if (WiFi.scanNetworks(true /*async*/, false /*hidden*/) == WIFI_SCAN_FAILED) {
     logAdd("wifi scan: failed to start");
     setScanJson("{\"scan\":\"idle\"}");
-    if (s_scanRadioOn) { WiFi.mode(WIFI_OFF); s_scanRadioOn = false; }
+    if (s_scanRadioOn) { WiFi.mode(s_apOn ? WIFI_AP : WIFI_OFF); s_scanRadioOn = false; }
     return;
   }
   s_scanActive = true;
@@ -226,7 +252,7 @@ static void scanTick() {
   else scanFinish(n);
   if (s_scanRadioOn) {
     s_scanRadioOn = false;
-    if (!s_wanted) WiFi.mode(WIFI_OFF);
+    if (!s_wanted) WiFi.mode(s_apOn ? WIFI_AP : WIFI_OFF);
   }
   // resume the join the scan interrupted (or start the one a config write asked for)
   if (s_wanted && s_state != WS_WIFI_UP) startConnect();
