@@ -92,8 +92,8 @@ and the audio codec rails stay powered (the RTC shares the codec's I2C bus).
 
 ## Flashing
 
-Use the web flasher (Chrome/Edge): `https://psonnera.github.io/WaveshareMon/Flasher/` once the
-repository is published with GitHub Pages, or open `Flasher/index.html` from a local web server.
+Use the web flasher (Chrome/Edge): **https://psonnera.github.io/WaveshareMon/Flasher/** (GitHub
+Pages serves the repository), or open `Flasher/index.html` from a local web server.
 The board uses the ESP32-S3 native USB (no driver). If no port appears, hold **BOOT** while
 plugging in the cable.
 
