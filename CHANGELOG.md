@@ -2,6 +2,10 @@
 
 ## Unreleased — 1.1.0
 
+- Build: the firmware now targets the **esp32 core 3.3.x** (IDF 5), the version the ESP32-C6
+  board needs. `Scripts/build.ps1` looks for the core in `%LOCALAPPDATA%\Arduino15-v3` first so
+  the M5 projects keep 2.0.16 in the default directory; the task watchdog is reconfigured with
+  the IDF 5 API. No functional change intended on the ESP32-S3 board.
 - New source **xDrip4iOS** (`src` 5): the "M5Stack" Bluetooth protocol of xDrip4iOS / xdripswift,
   ported from M5Stack_xDripMon (`BleXdrip4iOS`). In this mode the device advertises as
   `M5Stack WaveshareMon-XXXX` on its static random address (the app matches the name once, the

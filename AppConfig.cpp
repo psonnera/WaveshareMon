@@ -8,6 +8,7 @@
 #include "Log.h"
 #include <Preferences.h>
 #include <esp_system.h>
+#include <esp_mac.h>            // esp_efuse_mac_get_default (IDF 5)
 
 AppConfig cfg;
 

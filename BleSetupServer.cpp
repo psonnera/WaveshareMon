@@ -235,7 +235,7 @@ static uint32_t s_repersistAtMs = 0;
 
 class ServerCb : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer *, NimBLEConnInfo &info) override {
-    s_clients++;
+    s_clients = s_clients + 1;              // volatile: no ++ (deprecated in C++20)
     logAdd("BLE client connected");
     // Android keeps a bonded peer's GATT table cached across connections; the
     // table here depends on the configured source (Mi Band services or not),
@@ -253,7 +253,7 @@ class ServerCb : public NimBLEServerCallbacks {
     }
   }
   void onDisconnect(NimBLEServer *, NimBLEConnInfo &info, int) override {
-    if (s_clients > 0) s_clients--;
+    if (s_clients > 0) s_clients = s_clients - 1;
     s_logSubscribed = false;
     logAdd("BLE client disconnected");
     miBandOnDisconnect(info.getConnHandle());

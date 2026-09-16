@@ -10,9 +10,14 @@
       USB CDC on boot enabled, hardware CDC/JTAG, flash 8 MB QIO 80 MHz,
       partition scheme "8M with spiffs (3MB APP/1.5MB SPIFFS)", OPI PSRAM.
 
-    Requires the esp32:esp32 core (2.0.16, the version shared with the sibling
-    M5 projects) and the libraries NimBLE-Arduino 2.x, GxEPD2 (+ Adafruit GFX,
-    Adafruit BusIO) and ArduinoJson 7.
+    Requires the esp32:esp32 core 3.3.x (IDF 5) and the libraries NimBLE-Arduino
+    2.x, GxEPD2 (+ Adafruit GFX, Adafruit BusIO) and ArduinoJson 7. The core lives
+    in its own arduino-cli data directory, %LOCALAPPDATA%\Arduino15-v3, so the
+    sibling M5 projects keep 2.0.16 in the default one:
+      $env:ARDUINO_DIRECTORIES_DATA = "$env:LOCALAPPDATA\Arduino15-v3"
+      arduino-cli core update-index; arduino-cli core install esp32:esp32@3.3.11
+    (the script picks that directory by itself when it exists; set
+    ARDUINO_DIRECTORIES_DATA to override).
 
     The on-screen version (#define WSMON_VERSION in Version.h) is hand
     maintained. The flasher/OTA build number lives in
@@ -78,7 +83,11 @@ if (-not $ArduinoCli -or -not (Test-Path $ArduinoCli)) {
     throw "arduino-cli not found. Pass -ArduinoCli <path>, set `$env:ARDUINO_CLI, or add it to PATH."
 }
 
-if (-not $env:ARDUINO_DIRECTORIES_DATA) { $env:ARDUINO_DIRECTORIES_DATA = Join-Path $env:LOCALAPPDATA 'Arduino15' }
+if (-not $env:ARDUINO_DIRECTORIES_DATA) {
+    # core 3.x lives next to the default data directory (which the M5 projects keep on 2.0.16)
+    $v3 = Join-Path $env:LOCALAPPDATA 'Arduino15-v3'
+    $env:ARDUINO_DIRECTORIES_DATA = if (Test-Path $v3) { $v3 } else { Join-Path $env:LOCALAPPDATA 'Arduino15' }
+}
 if (-not $env:ARDUINO_DIRECTORIES_USER) { $env:ARDUINO_DIRECTORIES_USER = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Arduino' }
 
 # --- Target -------------------------------------------------------------------
@@ -88,7 +97,11 @@ $Folder = 'WS_ePaper154G'
 
 $vendorDir = Join-Path $env:ARDUINO_DIRECTORIES_DATA 'packages\esp32'
 if (-not (Test-Path $vendorDir)) {
-    throw "Board package 'esp32' not found in $env:ARDUINO_DIRECTORIES_DATA\packages. Run 'arduino-cli core install esp32:esp32@2.0.16'."
+    throw "Board package 'esp32' not found in $env:ARDUINO_DIRECTORIES_DATA\packages. Run 'arduino-cli core install esp32:esp32@3.3.11' with ARDUINO_DIRECTORIES_DATA set to that directory."
+}
+$coreVer = Get-ChildItem (Join-Path $vendorDir 'hardware\esp32') -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
+if ($coreVer -and [int]($coreVer.Name.Split('.')[0]) -lt 3) {
+    Write-Warning ("esp32 core {0} found in {1}; the firmware targets core 3.x (see the header of this script)." -f $coreVer.Name, $env:ARDUINO_DIRECTORIES_DATA)
 }
 
 $versionMatch = Select-String -Path (Join-Path $RepoRoot 'Version.h') -Pattern '#define\s+WSMON_VERSION\s+"([^"]+)"' | Select-Object -First 1
@@ -139,7 +152,8 @@ $cliArgs += @('--build-property', "compiler.cpp.extra_flags=$flags", '--build-pr
 & $ArduinoCli @cliArgs $Sketch
 if ($LASTEXITCODE -ne 0) { throw "Build FAILED (arduino-cli exit $LASTEXITCODE)." }
 
-Get-ChildItem $outDir -Include *.elf, *.map -File -Recurse | Remove-Item -Force
+# core 3.x also writes an 8 MB merged image: not wanted in the repository
+Get-ChildItem $outDir -Include *.elf, *.map, *.merged.bin -File -Recurse | Remove-Item -Force
 
 if ($NewBuild) {
     Set-Content -Path $infPath -Value $NewBuild -NoNewline -Encoding ascii

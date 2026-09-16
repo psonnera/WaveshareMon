@@ -60,7 +60,11 @@ static int request(const char *method, const char *path, const char *body, bool 
 
 static void sha256hex(const char *in, char *out) {
   unsigned char d[32];
+#if defined(MBEDTLS_VERSION_MAJOR) && MBEDTLS_VERSION_MAJOR >= 3
+  mbedtls_sha256((const unsigned char *)in, strlen(in), d, 0);         // mbedTLS 3 (core 3.x)
+#else
   mbedtls_sha256_ret((const unsigned char *)in, strlen(in), d, 0);
+#endif
   for (int i = 0; i < 32; i++) sprintf(out + 2 * i, "%02x", d[i]);
   out[64] = 0;
 }

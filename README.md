@@ -223,9 +223,11 @@ Service `4d5f0001-2b8c-4a3e-9f61-7c2d9e8b5a10`
 Scripts\build.bat            (or Scripts\build.ps1 [-Release] [-Port COM4])
 ```
 
-Requires arduino-cli with the `esp32:esp32` core 2.0.16 and the libraries NimBLE-Arduino 2.x
-(tested with 2.3.2), GxEPD2 (with Adafruit GFX + BusIO) and ArduinoJson 7; mbedTLS (AES for the
-Mi Band authentication, TLS for the cloud sources) comes with the core. Board options used:
+Requires arduino-cli with the `esp32:esp32` core 3.3.x (built with 3.3.11; the script looks for
+it in `%LOCALAPPDATA%\Arduino15-v3` first, so another project's 2.x core can stay in the default
+directory) and the libraries NimBLE-Arduino 2.x (tested with 2.3.2), GxEPD2 (with Adafruit GFX +
+BusIO) and ArduinoJson 7; mbedTLS (AES for the Mi Band authentication, TLS for the cloud
+sources) comes with the core. Board options used:
 ESP32S3 Dev Module, USB CDC on boot, 8 MB flash (QIO 80 MHz), partition "8M with spiffs", OPI
 PSRAM.
 

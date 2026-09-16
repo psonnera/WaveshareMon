@@ -182,7 +182,16 @@ void setup() {
   // Reboot the board if the main loop ever stalls for WDT_TIMEOUT_S, so a hung
   // firmware recovers on its own instead of needing the battery pulled. The
   // e-paper refresh blocks the loop for ~20 s, well under the timeout.
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  // core 3.x (IDF 5): the watchdog already runs with the IDF default; reconfigure it
+  esp_task_wdt_config_t wdt = {};
+  wdt.timeout_ms = WDT_TIMEOUT_S * 1000;
+  wdt.idle_core_mask = 0;
+  wdt.trigger_panic = true;                   // reset on timeout
+  if (esp_task_wdt_reconfigure(&wdt) != ESP_OK) esp_task_wdt_init(&wdt);
+#else
   esp_task_wdt_init(WDT_TIMEOUT_S, true /* reset on timeout */);
+#endif
   esp_task_wdt_add(NULL);
 
   cfg.load();
