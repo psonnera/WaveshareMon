@@ -6,12 +6,12 @@
 */
 #include "Battery.h"
 #include "Board.h"
+#include "BoardPower.h"
 
 Battery battery;
 
 void Battery::begin() {
-  pinMode(PIN_VBAT_PWR, OUTPUT);
-  digitalWrite(PIN_VBAT_PWR, HIGH);     // keep running from the battery after USB unplug
+  boardBatteryLatch(true);              // keep running from the battery after USB unplug
   analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
   lastMs = 0;
   tick();

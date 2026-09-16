@@ -18,9 +18,10 @@
 #define OTAUPDATE_H
 
 #include <Arduino.h>
+#include "Board.h"
 
-// where update.inf and WaveshareMon.ino.bin are fetched from
-#define OTA_BASE_URL "https://raw.githubusercontent.com/psonnera/WaveshareMon/master/Binaries/WS_ePaper154G/"
+// where update.inf and WaveshareMon.ino.bin are fetched from: this board's own folder
+#define OTA_BASE_URL "https://raw.githubusercontent.com/psonnera/WaveshareMon/master/Binaries/" BOARD_FOLDER "/"
 
 // check the server; install when it has a newer build and install is true.
 // Brings Wi-Fi up when the source does not use it, holds the device awake.

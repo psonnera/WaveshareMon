@@ -161,6 +161,12 @@
     <string name="update_timeout">Nessun risultato dal dispositivo dopo 6 minuti. Controlla il registro.</string>
     <string name="home_update_available">\nAggiornamento del firmware disponibile: build %1$d</string>
     <string name="log_update_available">firmware: il build %1$d è disponibile nel repository</string>
+    <string name="log_update_uptodate">firmware: aggiornato (build %1$d nel repository)</string>
+    <string name="log_update_unknown_build">firmware: il dispositivo non riporta un numero di build (firmware compilato a mano); build %1$d nel repository. Aggiorna firmware nella pagina Dispositivo lo installa comunque.</string>
+    <string name="log_update_check_failed">verifica del firmware non riuscita: %1$s</string>
+    <string name="btn_check_update">Cerca aggiornamenti</string>
+    <string name="btn_checking_update">Verifica…</string>
+    <string name="home_update_uptodate">\nFirmware aggiornato (build %1$d)</string>
     <string name="device_reading">lettura…</string>
 
     <!-- ===== pagina sorgente dati: schede Mi Band e bridge ===== -->

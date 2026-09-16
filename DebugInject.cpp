@@ -29,7 +29,9 @@ void powerOff();                   // WaveshareMon.ino
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <nvs_flash.h>
+#if CONFIG_IDF_TARGET_ESP32S3
 #include <soc/rtc_cntl_reg.h>
+#endif
 
 static void printCfg() {
   Serial.printf("[cfg] name=%s src=%u units=%u ssid=%s pass=%s url=%s token=%s tz=%s/%ld\n",
@@ -208,8 +210,12 @@ void debugInjectPoll() {
       // reboot into the ROM download mode (no BOOT button needed for esptool)
       Serial.println("[dbg] entering download mode");
       delay(100);
+#if CONFIG_IDF_TARGET_ESP32S3
       REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
       esp_restart();
+#else
+      Serial.println("[dbg] dfu: not on this chip - hold BOOT while plugging the cable in");
+#endif
     } else if (strcmp(line, "rtc") == 0) {
       time_t u = 0;
       bool ok = timeService.readRtc(u);

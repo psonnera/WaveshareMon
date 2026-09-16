@@ -170,6 +170,12 @@
     <string name="update_timeout">No result from the device after 6 minutes. Check the log.</string>
     <string name="home_update_available">\nFirmware update available: build %1$d</string>
     <string name="log_update_available">firmware: build %1$d is available in the repository</string>
+    <string name="log_update_uptodate">firmware: up to date (repository build %1$d)</string>
+    <string name="log_update_unknown_build">firmware: the device reports no build number (hand-built firmware); repository build %1$d. Update firmware on the Device page installs it anyway.</string>
+    <string name="log_update_check_failed">firmware check failed: %1$s</string>
+    <string name="btn_check_update">Check for update</string>
+    <string name="btn_checking_update">Checking…</string>
+    <string name="home_update_uptodate">\nFirmware up to date (build %1$d)</string>
     <string name="device_reading">reading…</string>
 
     <!-- ===== data source page: Mi Band and bridge cards ===== -->

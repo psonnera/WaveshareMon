@@ -1,9 +1,23 @@
 # WaveshareMon
 
-Glucose monitor firmware for the **Waveshare ESP32-S3-ePaper-1.54G** (ESP32-S3, 1.54" four-colour
-e-paper, 200×200) plus a companion Android app, **WaveShareMon**, that configures the device over
-Bluetooth and, for the xDrip / AAPS source, relays the phone's readings with the
+Glucose monitor firmware for the Waveshare 1.54" e-paper boards (200×200) plus a companion
+Android app, **WaveShareMon**, that configures the device over Bluetooth and, for the xDrip / AAPS
+source, relays the phone's readings with the
 [xDrip Open Bluetooth Broadcast](docs/xdrip-open-bluetooth-broadcast.md) protocol.
+
+One code base, one firmware image per board (`Board.h`, chosen at build time):
+
+| Board | Panel | Image folder |
+|---|---|---|
+| **ESP32-S3-ePaper-1.54G** | four-colour (black, white, red, yellow), ~20 s per refresh | `Binaries/WS_ePaper154G` |
+| **ESP32-S3-ePaper-1.54** | black and white, ~2 s per refresh | `Binaries/WS_ePaper154` |
+| **ESP32-C6-ePaper-1.54** | black and white, ESP32-C6 (16 MB flash, power switches on an I/O expander) | `Binaries/WS_ePaperC6_154` |
+
+On the black-and-white panels the warning band is a light dot pattern, the alarm band is reverse
+video (white on black), threshold lines are dotted or dashed and alert icons are white on black.
+The two S3 boards share their pins: flashing the image of the other panel does not damage
+anything, the device says *wrong firmware image* in its log and device info (the two panel
+controllers idle with opposite BUSY levels). The C6 wakes from deep sleep on **PWR** only.
 
 WaveshareMon shows the same information as
 [M5Stack_xDripMon](https://github.com/psonnera/M5Stack_xDripMon) and
@@ -67,12 +81,13 @@ permanently while unconfigured, in setup mode (BOOT held 3 s), while the app rea
 
 | Button | Press | Action |
 |---|---|---|
-| **BOOT** | short | snooze the active alarm (also while the sound plays) |
+| **BOOT** (gear symbol) | short | snooze the active alarm (also while the sound plays) |
 | **BOOT** | hold 3 s | setup mode on / off |
-| **PWR** | short | wake up and fetch now |
-| **PWR** | hold 2 s | power off (deep sleep, USB released); press PWR to start again |
+| **BOOT** | held while plugging USB in | the chip's download mode (hardware) |
+| **PWR** (power symbol) | short | wake up and fetch now; power on when off |
+| **PWR** | hold 2 s | power off (deep sleep, USB released, battery latch released) |
 
-Both buttons wake a sleeping device. Log lines carry the local time and survive sleep. The panel
+Both buttons wake a sleeping device (on the ESP32-C6 board only PWR does). Log lines carry the local time and survive sleep. The panel
 and the audio codec rails stay powered (the RTC shares the codec's I2C bus).
 
 ## Flashing
@@ -92,10 +107,11 @@ it shows up.
 
 ### Updating over Wi-Fi
 
-The phone decides, never the device. While the app is connected it reads
-`Binaries/WS_ePaper154G/update.inf` from this repository (once an hour) and compares the build
-number with the one the device reports. A newer build shows on the home screen as *Firmware
-update available* with an **Update firmware** button (also a command on the **Device** page).
+The phone decides, never the device. **Check for update** on the app's home screen reads
+`Binaries/<board folder>/update.inf` from this repository (the device names its folder) and
+compares the build number with the one the device reports. A newer build shows as *Firmware
+update available* with an **Update firmware** button (also a command on the **Device** page);
+otherwise the home screen says *Firmware up to date*. Nothing is checked or installed without a tap.
 On confirmation the device downloads `update.inf` and `WaveshareMon.ino.bin` itself, streams the
 image into the spare OTA slot and restarts; the app follows the `ota` field of the Info
 characteristic and reports the result. A Bluetooth source (xDrip, Mi Band) is asked for a Wi-Fi
@@ -220,8 +236,14 @@ Service `4d5f0001-2b8c-4a3e-9f61-7c2d9e8b5a10`
 ## Building
 
 ```
-Scripts\build.bat            (or Scripts\build.ps1 [-Release] [-Port COM4])
+Scripts\build.bat                            four-colour S3 image (default target)
+Scripts\build.ps1 -Target All -Release       the three images, build numbers bumped
+Scripts\build.ps1 -Target C6_BW -Port COM5   build and flash one board
 ```
+
+Targets: `S3_4C` (ESP32-S3-ePaper-1.54G), `S3_BW` (ESP32-S3-ePaper-1.54), `C6_BW`
+(ESP32-C6-ePaper-1.54), `All`. Each writes to its own `Binaries\<folder>` with its own
+`update.inf`; the firmware updates only from its own folder.
 
 Requires arduino-cli with the `esp32:esp32` core 3.3.x (built with 3.3.11; the script looks for
 it in `%LOCALAPPDATA%\Arduino15-v3` first, so another project's 2.x core can stay in the default
@@ -229,7 +251,8 @@ directory) and the libraries NimBLE-Arduino 2.x (tested with 2.3.2), GxEPD2 (wit
 BusIO) and ArduinoJson 7; mbedTLS (AES for the Mi Band authentication, TLS for the cloud
 sources) comes with the core. Board options used:
 ESP32S3 Dev Module, USB CDC on boot, 8 MB flash (QIO 80 MHz), partition "8M with spiffs", OPI
-PSRAM.
+PSRAM (S3 boards); ESP32C6 Dev Module, USB CDC on boot, 16 MB flash, the core's `default_16MB`
+partition table through the custom scheme (C6).
 
 Source layout:
 

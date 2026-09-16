@@ -3,7 +3,8 @@
  * Part of WaveShareMon (GPL v3). Copyright (C) 2026 Patrick Sonnerat
  *
  * The device never contacts the repository on its own: the phone fetches
- * Binaries/WS_ePaper154G/update.inf (a 10-digit build number, YYYYMMDDnn),
+ * Binaries/<board folder>/update.inf (a 10-digit build number, YYYYMMDDnn; the
+ * device names its folder in the "bfolder" info field, one per board),
  * compares it with the "build" field of the device's Info JSON and lets the
  * user decide. The same file is what the device reads once it is told to update.
  */
@@ -20,18 +21,20 @@ import java.net.URL;
 public final class FirmwareCheck {
     private FirmwareCheck() {}
 
-    public static final String BASE_URL = "https://raw.githubusercontent.com/psonnera/WaveshareMon/master/Binaries/WS_ePaper154G/";
+    public static final String BASE_URL = "https://raw.githubusercontent.com/psonnera/WaveshareMon/master/Binaries/";
+    /** folder of the original four-colour board, for firmware that predates the "bfolder" info field */
+    public static final String DEFAULT_FOLDER = "WS_ePaper154G";
 
     public interface Callback { void onResult(long build, String error); }   // build 0 = failed, see error
 
-    /** GET update.inf on a worker thread; the result comes on the main thread. */
-    public static void run(Callback cb) {
+    /** GET Binaries/&lt;folder&gt;/update.inf on a worker thread; the result comes on the main thread. */
+    public static void run(String folder, Callback cb) {
         Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
             long build = 0; String err = null;
             HttpURLConnection c = null;
             try {
-                c = (HttpURLConnection) new URL(BASE_URL + "update.inf").openConnection();
+                c = (HttpURLConnection) new URL(BASE_URL + folder + "/update.inf").openConnection();
                 c.setConnectTimeout(10000);
                 c.setReadTimeout(10000);
                 c.setRequestProperty("Cache-Control", "no-cache");

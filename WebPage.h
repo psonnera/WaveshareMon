@@ -155,9 +155,9 @@ $('units').onchange=()=>{const mm=$('units').value==1;if(mm==curMm)return;
 $('src').onchange=showGroups;
 async function loadConfig(){try{fill(await (await fetch('/api/config')).json());}catch(e){$('msg').textContent='Could not read the configuration: '+e;}}
 async function loadInfo(){try{const i=await (await fetch('/api/info')).json();$('nm').textContent=i.name+' setup';
- let s='Firmware '+i.fw+(i.build?' build '+i.build:'')+' · '+(i.bat>=0?'battery '+i.bat+' %':'on USB')+'\n'+(i.stat||'');
+ let s=(i.board||'')+'\nFirmware '+i.fw+(i.build?' build '+i.build:'')+' · '+(i.bat>=0?'battery '+i.bat+' %':'on USB')+'\n'+(i.stat||'');
  s+='\nWi-Fi: '+i.wifi+(i.ip?' '+i.ip:'')+(i.wifierr?' – '+i.wifierr:'');
- if(i.mac)s+='\nBluetooth address '+i.mac;if(i.src==5)s+='\nxDrip4iOS: '+i.x4i+(i.x4ipw?' \u00b7 password '+i.x4ipw:' \u00b7 no password yet');if(i.ota)s+='\nFirmware update: '+i.ota;$('st').textContent=s;}catch(e){}}
+ if(i.mac)s+='\nBluetooth address '+i.mac;if(i.src==5)s+='\nxDrip4iOS: '+i.x4i+(i.x4ipw?' \u00b7 password '+i.x4ipw:' \u00b7 no password yet');if(i.ota)s+='\nFirmware update: '+i.ota;if(i.panel=='mismatch')s+='\nWRONG FIRMWARE IMAGE for this panel: flash the other 1.54" image';$('st').textContent=s;}catch(e){}}
 async function loadLog(){try{const t=await (await fetch('/api/log')).text();const p=$('log');const b=p.scrollTop+p.clientHeight>=p.scrollHeight-4;p.textContent=t;if(b)p.scrollTop=p.scrollHeight;}catch(e){}}
 $('bsave').onclick=async()=>{const o=collect();if(!Object.keys(o).length){$('msg').textContent='Nothing changed.';return;}
  if(isWifi(o.src??cfg.src)&&!(o.ssid??cfg.ssid)){$('msg').textContent='Enter the Wi-Fi network name.';return;}

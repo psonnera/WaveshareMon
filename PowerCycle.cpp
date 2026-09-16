@@ -14,6 +14,7 @@
 #include "BleObbClient.h"
 #include "BleMiBand.h"
 #include "BleXdrip4iOS.h"
+#include "BoardPower.h"
 #include "BleSetupServer.h"
 #include "WifiService.h"
 #include "NightscoutClient.h"
@@ -56,32 +57,15 @@ static char     s_status[32] = "";
 // ---- wake ---------------------------------------------------------------------
 
 void cycleBegin() {
-  // The battery latch must stay closed through deep sleep (held) and be driven
-  // again before the hold is released, or the board would lose power here.
-  pinMode(PIN_VBAT_PWR, OUTPUT);
-  digitalWrite(PIN_VBAT_PWR, HIGH);
-  // Both switched rails stay on at all times: the PCF85063 RTC is only
-  // readable while the audio rail (ES8311 codec, PA_EN) is powered - an
-  // unpowered codec loads the shared I2C bus - and the hibernated panel
-  // draws next to nothing. Only the amplifier itself (PA_CTRL) is gated.
-  pinMode(PIN_EPD_PWR, OUTPUT);
-  digitalWrite(PIN_EPD_PWR, LOW);
-  pinMode(PIN_PA_EN, OUTPUT);
-  digitalWrite(PIN_PA_EN, LOW);
-  gpio_hold_dis((gpio_num_t)PIN_VBAT_PWR);
-  gpio_hold_dis((gpio_num_t)PIN_EPD_PWR);
-  gpio_hold_dis((gpio_num_t)PIN_PA_EN);
-  gpio_deep_sleep_hold_dis();
-  // the buttons were RTC wake pads: hand them back to the digital GPIO matrix
-  rtc_gpio_deinit((gpio_num_t)PIN_BOOT_BTN);
-  rtc_gpio_deinit((gpio_num_t)PIN_PWR_BTN);
+  // battery latch kept, rails on, sleep holds released, wake pins back to
+  // GPIO - per board (GPIO holds on the S3, an I2C expander on the C6)
+  boardPowerBegin();
 
   esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
   if (cause == ESP_SLEEP_WAKEUP_TIMER) {
     s_kind = WAKE_TIMER;
   } else if (cause == ESP_SLEEP_WAKEUP_EXT1) {
-    uint64_t pins = esp_sleep_get_ext1_wakeup_status();
-    s_kind = (pins & (1ULL << PIN_PWR_BTN)) ? WAKE_BUTTON_PWR : WAKE_BUTTON_BOOT;
+    s_kind = boardWakeWasPwr() ? WAKE_BUTTON_PWR : WAKE_BUTTON_BOOT;
   } else {
     s_kind = WAKE_COLD;
   }
@@ -217,16 +201,8 @@ static void enterDeepSleep(int32_t seconds) {
   // through sleep (see cycleBegin for why the rails stay on)
   ui.powerDown();
   audio.powerDown();
-  gpio_hold_en((gpio_num_t)PIN_EPD_PWR);
-  gpio_hold_en((gpio_num_t)PIN_PA_EN);
-  gpio_hold_en((gpio_num_t)PIN_VBAT_PWR);
-  gpio_deep_sleep_hold_en();
-  // both buttons (active low) wake the chip, plus the timer
-  rtc_gpio_pullup_en((gpio_num_t)PIN_BOOT_BTN);
-  rtc_gpio_pulldown_dis((gpio_num_t)PIN_BOOT_BTN);
-  rtc_gpio_pullup_en((gpio_num_t)PIN_PWR_BTN);
-  rtc_gpio_pulldown_dis((gpio_num_t)PIN_PWR_BTN);
-  esp_sleep_enable_ext1_wakeup((1ULL << PIN_BOOT_BTN) | (1ULL << PIN_PWR_BTN), ESP_EXT1_WAKEUP_ANY_LOW);
+  // switches held, the buttons (active low) wake the chip, plus the timer
+  boardPrepareSleep(false);
   esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
   esp_deep_sleep_start();
 }

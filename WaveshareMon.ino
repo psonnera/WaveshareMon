@@ -44,6 +44,7 @@
 #include "PowerCycle.h"
 #include "OtaUpdate.h"
 #include "WebSetup.h"
+#include "BoardPower.h"
 #include "DebugInject.h"
 #include "Log.h"
 #include <Wire.h>
@@ -128,8 +129,7 @@ void powerOff() {
   delay(50);
   ui.powerDown();
   audio.powerDown();
-  gpio_deep_sleep_hold_dis();
-  esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_PWR_BTN, 0);   // wake when PWR pulled low
+  boardPowerOff();                          // latch released, PWR (pulled low) wakes
   esp_deep_sleep_start();
 }
 
@@ -177,7 +177,7 @@ void setup() {
 #endif
   pinMode(PIN_BOOT_BTN, INPUT_PULLUP);
   pinMode(PIN_PWR_BTN, INPUT_PULLUP);
-  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000);
+  // (the I2C bus is started by cycleBegin() -> boardPowerBegin())
 
   // Reboot the board if the main loop ever stalls for WDT_TIMEOUT_S, so a hung
   // firmware recovers on its own instead of needing the battery pulled. The
@@ -202,7 +202,7 @@ void setup() {
   gs.restore();
   alarms.restore();
   timeService.begin();
-  if (cold) logAdd("boot v%s %s", WSMON_VERSION, cfg.name());
+  if (cold) logAdd("boot v%s %s (%s)", WSMON_VERSION, cfg.name(), BOARD_NAME);
   else      logAdd("wake %lu (%s)", (unsigned long)cycleWakes(), cycleWakeName());
   if (cfg.firstRun) logAdd("no config: setup mode");
 

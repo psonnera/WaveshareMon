@@ -18,6 +18,7 @@ public:
   void powerDown();               // panel supply off before deep sleep
   void requestRedraw() { redrawPending = true; }
   bool busy() const { return rendering; }
+  bool panelOk() const { return !panelMismatch; }   // false: the BUSY line says this is the other panel
 private:
   bool due();                     // consumes the change flags
   void ensureInit();              // panel supply + SPI + driver init, once per wake
@@ -33,6 +34,7 @@ private:
   volatile bool redrawPending = false;
   volatile bool rendering = false;
   bool     inited = false;
+  bool     panelMismatch = false;
 };
 
 extern EpdUi ui;

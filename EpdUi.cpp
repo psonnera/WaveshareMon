@@ -12,6 +12,8 @@
 #include <esp_attr.h>
 #include "EpdUi.h"
 #include "Board.h"
+#include "BoardPower.h"
+#include "Log.h"
 #include "AppConfig.h"
 #include "GlucoseState.h"
 #include "Alarms.h"
@@ -28,7 +30,11 @@
 #include "PowerCycle.h"
 #include "Version.h"
 #include <SPI.h>
+#if BOARD_PANEL_COLOR
 #include <GxEPD2_4C.h>
+#else
+#include <GxEPD2_BW.h>
+#endif
 #include <Fonts/FreeSans9pt7b.h>
 #include <Fonts/FreeSansBold9pt7b.h>
 #include <Fonts/FreeSansBold12pt7b.h>
@@ -67,8 +73,15 @@ EpdUi ui;
 #define BAR_Y       180           // bottom bar: alarm / status
 #define BAR_H       (H - BAR_Y)
 
+#if BOARD_PANEL_COLOR
+// four-colour GDEM0154F51H: ~20 s per refresh, BUSY idles high
 static GxEPD2_4C<GxEPD2_154c_GDEM0154F51H, GxEPD2_154c_GDEM0154F51H::HEIGHT>
   display(GxEPD2_154c_GDEM0154F51H(PIN_EPD_CS, PIN_EPD_DC, PIN_EPD_RST, PIN_EPD_BUSY));
+#else
+// black-and-white SSD1681 class (GDEH0154D67): ~2 s per refresh, BUSY idles low
+static GxEPD2_BW<GxEPD2_154_D67, GxEPD2_154_D67::HEIGHT>
+  display(GxEPD2_154_D67(PIN_EPD_CS, PIN_EPD_DC, PIN_EPD_RST, PIN_EPD_BUSY));
+#endif
 
 // ---- primitives ----------------------------------------------------------------
 
@@ -102,6 +115,59 @@ static void textSize(const char *s, const GFXfont *font, uint8_t size, uint16_t 
 }
 
 // 16x16 icon drawn at twice its size (32x32 cell); Adafruit GFX has no bitmap scaling
+// ---- palette: the four-colour panel says it with yellow and red; the
+// black-and-white panels with a light dot pattern (warning) and reverse video
+// (alarm), and alert icons as white on a black square
+#if BOARD_PANEL_COLOR
+#define COL_ALERT GxEPD_RED
+#else
+#define COL_ALERT GxEPD_BLACK
+#endif
+
+static void drawIcon2x(int16_t x, int16_t y, const unsigned char *bitmap, uint16_t color);
+
+// warning fill (yellow, or a 25 % dot pattern that reads as light grey inside a frame)
+static void fillWarn(int x, int y, int w, int h, int r) {
+#if BOARD_PANEL_COLOR
+  display.fillRoundRect(x, y, w, h, r, GxEPD_YELLOW);
+#else
+  display.drawRoundRect(x, y, w, h, r, GxEPD_BLACK);
+  for (int yy = y + 2; yy < y + h - 2; yy += 2)
+    for (int xx = x + 2 + ((yy >> 1) & 1); xx < x + w - 2; xx += 2) {
+      int cx = xx < x + r ? x + r : (xx >= x + w - r ? x + w - r - 1 : xx);   // rounded corners
+      int cy = yy < y + r ? y + r : (yy >= y + h - r ? y + h - r - 1 : yy);
+      int dx = xx - cx, dy = yy - cy;
+      if (r > 2 && dx * dx + dy * dy > (r - 2) * (r - 2)) continue;
+      display.drawPixel(xx, yy, GxEPD_BLACK);
+    }
+#endif
+}
+
+// alarm fill (red, or solid black): text on it is white on both panels
+static void fillAlarm(int x, int y, int w, int h, int r) {
+  display.fillRoundRect(x, y, w, h, r, COL_ALERT);
+}
+
+// a status icon in alert state
+static void drawIcon2xAlert(int16_t x, int16_t y, const unsigned char *bitmap) {
+#if BOARD_PANEL_COLOR
+  drawIcon2x(x, y, bitmap, GxEPD_RED);
+#else
+  display.fillRect(x, y, 32, 32, GxEPD_BLACK);
+  drawIcon2x(x, y, bitmap, GxEPD_WHITE);
+#endif
+}
+
+// graph threshold line: yellow / red, or dotted (warning) / dashed (alarm)
+static void thresholdLine(int x0, int y, int w, bool alarm) {
+#if BOARD_PANEL_COLOR
+  display.drawFastHLine(x0, y, w, alarm ? GxEPD_RED : GxEPD_YELLOW);
+#else
+  for (int i = 0; i < w; i++)
+    if (alarm ? (i % 5) < 3 : (i % 3) == 0) display.drawPixel(x0 + i, y, GxEPD_BLACK);
+#endif
+}
+
 static void drawIcon2x(int16_t x, int16_t y, const unsigned char *bitmap, uint16_t color) {
   for (int row = 0; row < 16; row++)
     for (int col = 0; col < 16; col++)
@@ -181,27 +247,26 @@ void EpdUi::drawHeader() {
   else if (pct >= 0) {
     const unsigned char *ic = pct <= 12 ? bat0_icon16x16 : pct <= 40 ? bat1_icon16x16 :
                               pct <= 65 ? bat2_icon16x16 : pct <= 90 ? bat3_icon16x16 : bat4_icon16x16;
-    uint16_t c = pct <= 12 ? GxEPD_RED : GxEPD_BLACK;
-    drawIcon2x(x, 0, ic, c);
-    if (pf) drawText(pt, x - 3, (HDR_H - ph) / 2, pf, 1, c, AL_RIGHT);
+    bool low = pct <= 12;
+    if (low) drawIcon2xAlert(x, 0, ic); else drawIcon2x(x, 0, ic, GxEPD_BLACK);
+    if (pf) drawText(pt, x - 3, (HDR_H - ph) / 2, pf, 1, low ? COL_ALERT : GxEPD_BLACK, AL_RIGHT);
   }
   x = linkX;
   if (cfg.source == SRC_OBB) {
-    ObbState s = obbState();
-    uint16_t c = s == OBB_CONNECTED ? GxEPD_BLACK : GxEPD_RED;
-    drawIcon2x(x, 0, bluetooth_icon16x16, c);
+    if (obbState() == OBB_CONNECTED) drawIcon2x(x, 0, bluetooth_icon16x16, GxEPD_BLACK);
+    else drawIcon2xAlert(x, 0, bluetooth_icon16x16);
   } else if (cfg.source == SRC_MIBAND) {
     // in the power cycle the link is closed again before the screen refreshes:
     // black as long as xDrip has paired, red until the first key exchange
     bool ok = miBandIsAuthenticated() || (!cycleAwake() && cfg.mibandKeySet);
-    drawIcon2x(x, 0, bluetooth_icon16x16, ok ? GxEPD_BLACK : GxEPD_RED);
+    if (ok) drawIcon2x(x, 0, bluetooth_icon16x16, GxEPD_BLACK); else drawIcon2xAlert(x, 0, bluetooth_icon16x16);
   } else if (cfg.source == SRC_XDRIP4IOS) {
     bool ok = xdrip4iosIsAuthenticated() || (!cycleAwake() && cfg.x4iPassword[0]);
-    drawIcon2x(x, 0, bluetooth_icon16x16, ok ? GxEPD_BLACK : GxEPD_RED);
+    if (ok) drawIcon2x(x, 0, bluetooth_icon16x16, GxEPD_BLACK); else drawIcon2xAlert(x, 0, bluetooth_icon16x16);
   } else {
-    drawIcon2x(x, 0, wifi2_icon16x16, wifiConnected() ? GxEPD_BLACK : GxEPD_RED);
+    if (wifiConnected()) drawIcon2x(x, 0, wifi2_icon16x16, GxEPD_BLACK); else drawIcon2xAlert(x, 0, wifi2_icon16x16);
   }
-  if (snoozed) drawIcon2x(x - 32, 0, clock_icon16x16, GxEPD_RED);
+  if (snoozed) drawIcon2xAlert(x - 32, 0, clock_icon16x16);
 
   if (t[0]) drawText(t, 2, (HDR_H - th) / 2, tf, 1, GxEPD_BLACK);
 }
@@ -228,8 +293,8 @@ void EpdUi::drawValue() {
                    (as == ALARM_NONE) ? 0 : 1;
   if (alarmLevel > level) level = alarmLevel;
   uint16_t fg = GxEPD_BLACK;
-  if (level == 2) { display.fillRoundRect(2, BAND_TOP, W - 4, BAND_H, 8, GxEPD_RED); fg = GxEPD_WHITE; }
-  else if (level == 1) { display.fillRoundRect(2, BAND_TOP, W - 4, BAND_H, 8, GxEPD_YELLOW); }
+  if (level == 2) { fillAlarm(2, BAND_TOP, W - 4, BAND_H, 8); fg = GxEPD_WHITE; }
+  else if (level == 1) { fillWarn(2, BAND_TOP, W - 4, BAND_H, 8); }
   else if (gs.hasData && !stale) {
     display.drawRoundRect(2, BAND_TOP, W - 4, BAND_H, 8, GxEPD_BLACK);
     display.drawRoundRect(3, BAND_TOP + 1, W - 6, BAND_H - 2, 7, GxEPD_BLACK);
@@ -240,7 +305,7 @@ void EpdUi::drawValue() {
   if (late) {
     // strike-through: the value can no longer be trusted
     int y = ty + th / 2;
-    display.fillRect(VAL_CX - tw / 2 - 6, y - 2, tw + 12, 5, level == 2 ? GxEPD_WHITE : GxEPD_RED);
+    display.fillRect(VAL_CX - tw / 2 - 6, y - 2, tw + 12, 5, level == 2 ? GxEPD_WHITE : COL_ALERT);
   }
   // trend pointer, right of the value, in the band's foreground colour
   if (gs.hasData && gs.arrowAngle != ARROW_HIDDEN && !stale)
@@ -266,9 +331,17 @@ void EpdUi::drawTrendRow() {
   }
   if (!age[0]) return;
   textSize(age, &FreeSansBold18pt7b, 1, tw, th);
-  // a late age is red, except on the red band where everything is white
-  uint16_t c = gs.isLate() && bandFg != GxEPD_WHITE ? GxEPD_RED : bandFg;
-  drawText(age, W - 10, TREND_Y + (TREND_H - th) / 2, &FreeSansBold18pt7b, 1, c, AL_RIGHT);
+  // a late age is red (or white in a black pill), except on the alarm band
+  // where everything is white already
+  bool lateMark = gs.isLate() && bandFg != GxEPD_WHITE;
+  int ay = TREND_Y + (TREND_H - th) / 2;
+#if BOARD_PANEL_COLOR
+  uint16_t c = lateMark ? GxEPD_RED : bandFg;
+#else
+  uint16_t c = bandFg;
+  if (lateMark) { display.fillRoundRect(W - 10 - tw - 6, ay - 3, tw + 12, th + 6, 4, GxEPD_BLACK); c = GxEPD_WHITE; }
+#endif
+  drawText(age, W - 10, ay, &FreeSansBold18pt7b, 1, c, AL_RIGHT);
 }
 
 void EpdUi::drawGraph(int y0, int hgt) {
@@ -291,21 +364,26 @@ void EpdUi::drawGraph(int y0, int hgt) {
     if (mg > hi) mg = hi; if (mg < lo) mg = lo;
     return (int)(y0 + hgt - 1 - (mg - lo) * (hgt - 1) / (hi - lo));
   };
-  auto threshold = [&](int mg, uint16_t c) {
-    if (mg >= lo && mg <= hi) display.drawFastHLine(x0, yOf(mg), gw, c);
+  auto threshold = [&](int mg, bool alarm) {
+    if (mg >= lo && mg <= hi) thresholdLine(x0, yOf(mg), gw, alarm);
   };
-  threshold(cfg.yellowHigh, GxEPD_YELLOW);
-  threshold(cfg.yellowLow, GxEPD_YELLOW);
-  threshold(cfg.redHigh, GxEPD_RED);
-  threshold(cfg.redLow, GxEPD_RED);
+  threshold(cfg.yellowHigh, false);
+  threshold(cfg.yellowLow, false);
+  threshold(cfg.redHigh, true);
+  threshold(cfg.redLow, true);
   for (int i = first; i < n; i++) {
     uint16_t v = gs.hist[i];
     if (v == 0) continue;
     int x = x0 + (GRAPH_PTS - (n - i)) * GRAPH_PITCH;
-    uint16_t c = GxEPD_BLACK;
-    if (v < cfg.redLow || v > cfg.redHigh) c = GxEPD_RED;
+    bool out = v < cfg.redLow || v > cfg.redHigh;      // beyond the red thresholds
+#if BOARD_PANEL_COLOR
+    uint16_t c = out ? GxEPD_RED : GxEPD_BLACK;
     display.fillCircle(x, yOf(v), 1, c);
     display.drawPixel(x, yOf(v) - 1, c);
+#else
+    display.fillCircle(x, yOf(v), out ? 2 : 1, GxEPD_BLACK);   // bigger dot instead of red
+    if (!out) display.drawPixel(x, yOf(v) - 1, GxEPD_BLACK);
+#endif
   }
 }
 
@@ -342,7 +420,7 @@ void EpdUi::drawBottomBar(bool infoShown) {
   if (alarm[0]) {
     AlarmState s = alarms.state();
     bool red = s == ALARM_ALARM_LOW || s == ALARM_ALARM_HIGH || s == ALARM_REMOTE;
-    display.fillRect(0, y, W, BAR_H, red ? GxEPD_RED : GxEPD_YELLOW);
+    if (red) fillAlarm(0, y, W, BAR_H, 0); else fillWarn(0, y, W, BAR_H, 0);
     char txt[40];
     int sn = alarms.snoozeRemainingMin();
     if (sn) snprintf(txt, sizeof(txt), "%s  zz %d'", alarm, sn);
@@ -421,11 +499,17 @@ static double sinceLastRender() {
 
 void EpdUi::ensureInit() {
   if (inited) return;
-  digitalWrite(PIN_EPD_PWR, LOW);         // panel supply on (already on, see PowerCycle)
+  boardPanelPower(true);                  // panel supply on (already on, see PowerCycle)
   SPI.begin(PIN_EPD_SCK, -1, PIN_EPD_MOSI, PIN_EPD_CS);
   display.init(0, true, 2, false);
   display.setRotation(0);
   inited = true;
+  // The two panel controllers idle with opposite BUSY levels (four-colour:
+  // high, SSD1681 black-and-white: low). The wrong image for the panel would
+  // otherwise just show garbage: say so in the log and the device info.
+  int idle = digitalRead(PIN_EPD_BUSY);
+  panelMismatch = idle != (BOARD_PANEL_COLOR ? HIGH : LOW);
+  if (panelMismatch) logAdd("panel: BUSY idles %s - wrong firmware image for this panel?", idle ? "high" : "low");
 }
 
 // source name for the status page, wrapped on two short lines when needed
@@ -453,7 +537,12 @@ void EpdUi::drawStatusPage() {
   if (setupServerAdvertising()) {
     // the Android app over Bluetooth, or any browser through the open access
     // point the device runs while in setup mode (WebSetup)
+#if BOARD_PANEL_COLOR
     display.fillRoundRect(6, 78, W - 12, 66, 6, GxEPD_YELLOW);
+#else
+    display.drawRoundRect(6, 78, W - 12, 66, 6, GxEPD_BLACK);      // double frame, no dither under 4 lines of text
+    display.drawRoundRect(7, 79, W - 14, 64, 5, GxEPD_BLACK);
+#endif
     drawText("Setup mode", W / 2, 81, &FreeSansBold9pt7b, 1, GxEPD_BLACK, AL_CENTER);
     drawText("app  or  Wi-Fi network:", W / 2, 97, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
     drawText(cfg.name(), W / 2, 112, &FreeSansBold9pt7b, 1, GxEPD_BLACK, AL_CENTER);
@@ -470,7 +559,7 @@ void EpdUi::drawStatusPage() {
   while (*state == ' ') state++;
   bool bad = strstr(line, "fail") || strstr(line, "bad") || strstr(line, "not ") || strstr(line, "error") ||
              strstr(line, "HTTP") || strstr(line, "locked") || strstr(line, "no ");
-  drawText(state, W / 2, 164, &FreeSans9pt7b, 1, bad ? GxEPD_RED : GxEPD_BLACK, AL_CENTER);
+  drawText(state, W / 2, 164, &FreeSans9pt7b, 1, bad ? COL_ALERT : GxEPD_BLACK, AL_CENTER);
   drawText("waiting for the first reading", W / 2, 182, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
 }
 
@@ -505,7 +594,6 @@ void EpdUi::render() {
 }
 
 void EpdUi::begin(bool splash) {
-  pinMode(PIN_EPD_PWR, OUTPUT);
   if (!splash) return;                    // woke from deep sleep: the panel keeps its image
   ensureInit();
   display.setFullWindow();
@@ -514,7 +602,7 @@ void EpdUi::begin(bool splash) {
     display.fillScreen(GxEPD_WHITE);
     drawText("WaveshareMon", W / 2, 60, &FreeSansBold12pt7b, 1, GxEPD_BLACK, AL_CENTER);
     drawText("v" WSMON_VERSION, W / 2, 90, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
-    drawText(cfg.name(), W / 2, 130, &FreeSans9pt7b, 1, GxEPD_RED, AL_CENTER);
+    drawText(cfg.name(), W / 2, 130, &FreeSans9pt7b, 1, COL_ALERT, AL_CENTER);
   } while (display.nextPage());
   display.hibernate();
   s_rtc.magic = UI_MAGIC;

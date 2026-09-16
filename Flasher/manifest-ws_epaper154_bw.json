@@ -1,0 +1,26 @@
+{
+  "name": "WaveshareMon — Waveshare ESP32-S3-ePaper-1.54 / ESP32-C6-ePaper-1.54 (black and white)",
+  "version": "see update.inf",
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "../Binaries/WS_ePaper154/WaveshareMon.ino.bootloader.bin", "offset": 0 },
+        { "path": "../Binaries/WS_ePaper154/WaveshareMon.ino.partitions.bin", "offset": 32768 },
+        { "path": "../Binaries/WS_ePaper154/boot_app0.bin", "offset": 57344 },
+        { "path": "../Binaries/WS_ePaper154/WaveshareMon.ino.bin", "offset": 65536 }
+      ]
+    },
+    {
+      "chipFamily": "ESP32-C6",
+      "parts": [
+        { "path": "../Binaries/WS_ePaperC6_154/WaveshareMon.ino.bootloader.bin", "offset": 0 },
+        { "path": "../Binaries/WS_ePaperC6_154/WaveshareMon.ino.partitions.bin", "offset": 32768 },
+        { "path": "../Binaries/WS_ePaperC6_154/boot_app0.bin", "offset": 57344 },
+        { "path": "../Binaries/WS_ePaperC6_154/WaveshareMon.ino.bin", "offset": 65536 }
+      ]
+    }
+  ]
+}

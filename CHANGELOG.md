@@ -2,6 +2,15 @@
 
 ## Unreleased — 1.1.0
 
+- Three boards from one code base: `Board.h` describes the **ESP32-S3-ePaper-1.54G** (four-colour,
+  default), the **ESP32-S3-ePaper-1.54** (black and white, same pins) and the
+  **ESP32-C6-ePaper-1.54** (black and white, ESP32-C6, 16 MB flash, power switches on a TCA9554
+  expander, PWR-only deep-sleep wake); `BoardPower` hides the power-switch and wake differences.
+  Black-and-white palette: dot-pattern warning band, reverse-video alarm band, dotted / dashed
+  thresholds, alert icons white on black. A BUSY-level check flags the wrong S3 image in the log
+  and the Info `panel` field; Info gains `board` and `bfolder`, and the app checks updates in the
+  folder the device names. `Scripts/build.ps1 -Target S3_4C|S3_BW|C6_BW|All`; the flasher has a
+  card per panel and picks the S3 or C6 image by chip.
 - Build: the firmware now targets the **esp32 core 3.3.x** (IDF 5), the version the ESP32-C6
   board needs. `Scripts/build.ps1` looks for the core in `%LOCALAPPDATA%\Arduino15-v3` first so
   the M5 projects keep 2.0.16 in the default directory; the task watchdog is reconfigured with
@@ -20,10 +29,11 @@
   `setupBuildInfo/Config`, `setupApplyConfig`, `setupCommand` shared with `BleSetupServer`).
   The same page is served on the station address of a connected Wi-Fi source. The access point
   goes away with setup mode. The e-paper status page names the network and the address.
-- Firmware update over Wi-Fi (OTA), decided on the phone: the app reads
-  `Binaries/WS_ePaper154G/update.inf` from the GitHub repository, shows *Firmware update
-  available* with an **Update firmware** button when the device's build (Info `build`, from
-  `WSMON_BUILD` set by `Scripts/build.ps1`) is older, asks a Bluetooth-source device for a Wi-Fi
+- Firmware update over Wi-Fi (OTA), decided on the phone: **Check for update** on the app's
+  home screen reads `Binaries/<board folder>/update.inf` from the GitHub repository and shows
+  *Firmware update available* with an **Update firmware** button when the device's build (Info
+  `build`, from `WSMON_BUILD` set by `Scripts/build.ps1`) is older (nothing is checked or
+  installed without a tap), asks a Bluetooth-source device for a Wi-Fi
   network (used for the download only, back on Bluetooth after the restart), sends `update` and
   follows the Info `ota` field to a result dialog. The device streams the image into the spare
   OTA slot and restarts; it never contacts the repository on its own. On battery the install

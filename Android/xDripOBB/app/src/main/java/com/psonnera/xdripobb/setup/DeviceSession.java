@@ -57,10 +57,9 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
     private int wifiScanSerial = 0;          // bumps on every result, so a page can tell a new one
     private int scanPolls = 0;
 
-    // newest firmware build in the repository, fetched by the phone (the device never asks by itself)
-    private static final long LATEST_CHECK_MS = 60 * 60_000;
+    // newest firmware build in the repository, fetched by the phone on the user's
+    // "Check for update" (the device never asks by itself, and neither does the app)
     private long latestBuild = 0;
-    private long latestCheckedAt = 0;
     private boolean checkingLatest = false;
 
     private final Runnable infoPoll = new Runnable() {
@@ -98,6 +97,7 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
     /** newest build in the repository, 0 until the phone managed to read it */
     public long latestBuild() { return latestBuild; }
     public boolean updateAvailable() { return latestBuild > 0 && deviceBuild() > 0 && latestBuild > deviceBuild(); }
+    public boolean isCheckingUpdate() { return checkingLatest; }
     public List<String> log() { synchronized (log) { return new ArrayList<>(log); } }
     public Map<String, BluetoothDevice> foundDevices() { return new LinkedHashMap<>(found); }
     public String foundName(String address) { String n = foundNames.get(address); return n != null ? n : "?"; }
@@ -204,23 +204,24 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
         try { info = new JSONObject(json); infoAt = System.currentTimeMillis(); }
         catch (JSONException e) { addLog("info parse error: " + e.getMessage()); }
         changed();
-        maybeCheckLatest();
     }
 
-    /** once an hour while a device with a build number is connected: read the repository's update.inf */
-    private void maybeCheckLatest() {
-        if (checkingLatest || deviceBuild() <= 0) return;
-        if (latestCheckedAt != 0 && System.currentTimeMillis() - latestCheckedAt < LATEST_CHECK_MS) return;
+    /** "Check for update": read the repository's update.inf for this device's board and compare */
+    public void checkForUpdate() {
+        if (checkingLatest) return;
+        if (!client.isReady() || info == null) { addLog(app.getString(R.string.update_not_connected)); changed(); return; }
         checkingLatest = true;
-        FirmwareCheck.run((build, error) -> {
+        changed();
+        String folder = info.optString("bfolder", FirmwareCheck.DEFAULT_FOLDER);
+        FirmwareCheck.run(folder, (build, error) -> {
             checkingLatest = false;
-            latestCheckedAt = System.currentTimeMillis();
             if (build > 0) {
-                boolean was = updateAvailable();
                 latestBuild = build;
-                if (!was && updateAvailable()) addLog(app.getString(R.string.log_update_available, build));
-            } else if (error != null) {
-                addLog("firmware check: " + error);
+                if (deviceBuild() <= 0) addLog(app.getString(R.string.log_update_unknown_build, build));
+                else if (updateAvailable()) addLog(app.getString(R.string.log_update_available, build));
+                else addLog(app.getString(R.string.log_update_uptodate, build));
+            } else {
+                addLog(app.getString(R.string.log_update_check_failed, error != null ? error : "?"));
             }
             changed();
         });

@@ -162,6 +162,12 @@
     <string name="update_timeout">Aucun résultat de l\'appareil après 6 minutes. Consultez le journal.</string>
     <string name="home_update_available">\nMise à jour du firmware disponible : build %1$d</string>
     <string name="log_update_available">firmware : le build %1$d est disponible dans le dépôt</string>
+    <string name="log_update_uptodate">firmware : à jour (build %1$d dans le dépôt)</string>
+    <string name="log_update_unknown_build">firmware : l\'appareil n\'indique pas de numéro de build (firmware compilé à la main) ; build %1$d dans le dépôt. Mettre à jour le firmware sur la page Appareil l\'installe quand même.</string>
+    <string name="log_update_check_failed">vérification du firmware échouée : %1$s</string>
+    <string name="btn_check_update">Rechercher une mise à jour</string>
+    <string name="btn_checking_update">Vérification…</string>
+    <string name="home_update_uptodate">\nFirmware à jour (build %1$d)</string>
     <string name="device_reading">lecture…</string>
 
     <!-- ===== page source de données : cartes Mi Band et passerelle ===== -->

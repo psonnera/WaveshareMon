@@ -38,7 +38,7 @@
 <body>
 <main>
   <h1>WaveshareMon Web Flasher</h1>
-  <p class="subtitle">Flash the glucose monitor firmware for the Waveshare ESP32-S3-ePaper-1.54G straight from your browser.</p>
+  <p class="subtitle">Flash the glucose monitor firmware for the Waveshare 1.54&Prime; e-paper boards straight from your browser. Pick the card that matches your panel: the flasher tells the ESP32-S3 and the ESP32-C6 apart by itself.</p>
 
   <div class="notice" id="unsupported">
     <b>This browser can't flash devices.</b> Web Serial is required — use Google Chrome or
@@ -48,11 +48,22 @@
 
   <div class="card">
     <div class="card-info">
-      <h2>Waveshare ESP32-S3-ePaper-1.54G</h2>
-      <p>1.54&Prime; four-colour e-paper board (ESP32-S3, 8&nbsp;MB flash, 8&nbsp;MB PSRAM, native USB).</p>
+      <h2>Waveshare ESP32-S3-ePaper-1.54G — four-colour panel</h2>
+      <p>1.54&Prime; black / white / red / yellow e-paper (ESP32-S3, 8&nbsp;MB flash, 8&nbsp;MB PSRAM, native USB).</p>
       <div class="version" data-group="WS_ePaper154G">Version: <b>…</b></div>
     </div>
     <esp-web-install-button manifest="manifest-ws_epaper154g.json" data-group="WS_ePaper154G">
+      <button slot="activate">Install</button>
+    </esp-web-install-button>
+  </div>
+
+  <div class="card">
+    <div class="card-info">
+      <h2>Waveshare ESP32-S3-ePaper-1.54 or ESP32-C6-ePaper-1.54 — black-and-white panel</h2>
+      <p>1.54&Prime; black-and-white e-paper. One button for both boards: the image matching the chip (ESP32-S3 or ESP32-C6) is chosen automatically.</p>
+      <div class="version" data-group="WS_ePaper154,WS_ePaperC6_154">Version: <b>…</b></div>
+    </div>
+    <esp-web-install-button manifest="manifest-ws_epaper154_bw.json" data-group="WS_ePaper154,WS_ePaperC6_154">
       <button slot="activate">Install</button>
     </esp-web-install-button>
   </div>
@@ -61,7 +72,7 @@
     <h3>Before you start</h3>
     <ul>
       <li>Works in <b>Chrome or Edge on any desktop OS</b>. Use a USB <b>data</b> cable.</li>
-      <li>The board uses the ESP32-S3 native USB: no driver is needed. If no serial port shows
+      <li>The boards use the chip's native USB: no driver is needed. If no serial port shows
           up, hold the <b>BOOT</b> button while plugging in the cable (download mode), then try again.</li>
       <li>Choosing <b>Erase device</b> wipes saved settings and Bluetooth bonds — recommended for a
           first install, not needed for re-flashing.</li>
@@ -94,14 +105,18 @@
   }
   // Show the current build number (update.inf) and patch it into the manifest.
   document.querySelectorAll('esp-web-install-button[data-group]').forEach(async (btn) => {
-    const group = btn.dataset.group;
+    const group = btn.dataset.group;                 // one folder, or "S3folder,C6folder"
+    const groups = group.split(',');
     const versionEl = document.querySelector(`.version[data-group="${group}"] b`);
     const manifestUrl = new URL(btn.getAttribute('manifest'), location.href);
     try {
-      const [infRes, manRes] = await Promise.all([fetch(`../Binaries/${group}/update.inf`), fetch(manifestUrl)]);
-      const version = (await infRes.text()).trim();
+      const [manRes, ...infRes] = await Promise.all([fetch(manifestUrl), ...groups.map(g => fetch(`../Binaries/${g}/update.inf`))]);
+      const versions = [];
+      for (const r of infRes) versions.push((await r.text()).trim());
+      const version = versions[0];
       const manifest = await manRes.json();
-      if (versionEl && version) versionEl.textContent = 'v' + version;
+      if (versionEl && version) versionEl.textContent = groups.length > 1
+        ? groups.map((g, i) => (g.includes('C6') ? 'C6 v' : 'S3 v') + versions[i]).join(' · ') : 'v' + version;
       manifest.version = version || manifest.version;
       for (const build of manifest.builds)
         for (const part of build.parts) part.path = new URL(part.path, manifestUrl).href;

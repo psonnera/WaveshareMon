@@ -10,6 +10,7 @@
 */
 #include "Audio.h"
 #include "Board.h"
+#include "BoardPower.h"
 #include <Wire.h>
 #include <driver/i2s.h>
 #include <math.h>
@@ -69,6 +70,18 @@ static bool es8311Init() {
   return true;
 }
 
+// amplifier gate: a control line on the S3 boards; on the C6 the amplifier
+// has none, so the codec's DAC mute does the job
+static void ampEnable(bool on) {
+#if PIN_PA_CTRL >= 0
+  pinMode(PIN_PA_CTRL, OUTPUT);
+  digitalWrite(PIN_PA_CTRL, on ? HIGH : LOW);
+#else
+  uint8_t v;
+  if (i2cRead8(I2C_ADDR_ES8311, 0x31, v)) i2cWrite8(I2C_ADDR_ES8311, 0x31, on ? (v & ~0x60) : (v | 0x60));
+#endif
+}
+
 static void toneTask(void *) {
   float phase = 0.0f;
   static int32_t buf[TONE_CHUNK * 2];
@@ -77,7 +90,7 @@ static void toneTask(void *) {
       if ((int32_t)(millis() - s_end) >= 0) {
         s_playing = false;
         i2s_zero_dma_buffer(I2S_PORT);
-        digitalWrite(PIN_PA_CTRL, LOW);
+        ampEnable(false);
         continue;
       }
       float step = 2.0f * PI * (float)s_freq / (float)I2S_RATE;
@@ -101,10 +114,8 @@ static void toneTask(void *) {
 bool Audio::begin() {
   if (tried) return enabled;
   tried = true;
-  pinMode(PIN_PA_EN, OUTPUT);
-  pinMode(PIN_PA_CTRL, OUTPUT);
-  digitalWrite(PIN_PA_EN, LOW);        // audio power on
-  digitalWrite(PIN_PA_CTRL, LOW);      // amplifier idle until a tone plays
+  boardAudioPower(true);               // audio rail on (it already is, see PowerCycle)
+  ampEnable(false);                    // amplifier idle until a tone plays
   delay(10);
   if (!es8311Init()) {
     Serial.println("[audio] ES8311 not found, speaker disabled");
@@ -143,7 +154,7 @@ void Audio::tone(uint16_t freq, uint32_t durationMs, uint8_t volume) {
   s_vol = (uint8_t)map(volume > 100 ? 100 : volume, 0, 100, 0, 255);
   s_freq = freq;
   s_end = millis() + durationMs;
-  digitalWrite(PIN_PA_CTRL, HIGH);
+  ampEnable(true);
   s_playing = true;
 }
 
@@ -152,7 +163,7 @@ bool Audio::isPlaying() const { return s_playing; }
 void Audio::mute() {
   s_playing = false;
   if (enabled) i2s_zero_dma_buffer(I2S_PORT);
-  digitalWrite(PIN_PA_CTRL, LOW);
+  ampEnable(false);
 }
 
 void Audio::powerDown() {

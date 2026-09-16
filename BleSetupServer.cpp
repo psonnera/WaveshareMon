@@ -5,6 +5,7 @@
   Copyright (C) 2026 Patrick Sonnerat
 */
 #include "BleSetupServer.h"
+#include "Board.h"
 #include "AppConfig.h"
 #include "GlucoseState.h"
 #include "Alarms.h"
@@ -75,6 +76,9 @@ void setupBuildInfo(std::string &out) {
   d["x4ipw"] = cfg.x4iPassword;                         // its password ("" = none yet), to re-add the device in the app
   d["live"] = gs.live;                                  // false: the panel shows its status page
   d["build"] = (uint32_t)WSMON_BUILD;                   // running build (YYYYMMDDnn, 0 = hand built)
+  d["board"] = BOARD_NAME;
+  d["bfolder"] = BOARD_FOLDER;                          // Binaries/<folder> the app checks for updates
+  d["panel"] = ui.panelOk() ? (BOARD_PANEL_COLOR ? "4c" : "bw") : "mismatch";   // mismatch = wrong image for this panel
   d["ota"] = otaStatus();                               // "" / checking / up to date / update N available / updating n% / failed: ...
   d["otabuild"] = otaLatestBuild();                     // newest build seen on the server (0 = never checked)
   char st[48];

@@ -60,6 +60,7 @@ public class MainActivity extends AppCompatActivity implements DeviceSession.Lis
         b.btnAlarms.setOnClickListener(v -> startActivity(new Intent(this, AlarmsActivity.class)));
         b.btnDevice.setOnClickListener(v -> startActivity(new Intent(this, DeviceActivity.class)));
         b.btnUpdate.setOnClickListener(v -> FirmwareUpdateFlow.start(this, session));
+        b.btnCheckUpdate.setOnClickListener(v -> session.checkForUpdate());
 
         // the silent bridge restarts with the app when it was left on
         if (new ObbPrefs(this).serverEnabled())
@@ -108,9 +109,13 @@ public class MainActivity extends AppCompatActivity implements DeviceSession.Lis
             if (!wake.isEmpty()) s += getString(R.string.home_woke, wake, info.optInt("uptime", 0));
             if (!info.optBoolean("live", true)) s += getString(R.string.home_status_page);
             if (session.updateAvailable()) s += getString(R.string.home_update_available, session.latestBuild());
+            else if (session.latestBuild() > 0 && session.deviceBuild() > 0) s += getString(R.string.home_update_uptodate, session.deviceBuild());
             b.tvDevice.setText(s);
         }
-        // the phone checked the repository and found a newer firmware: offer it, never install by itself
+        // "Check for update" asks the repository; a newer build shows the Update button. Nothing installs by itself.
+        b.btnCheckUpdate.setVisibility(connected ? View.VISIBLE : View.GONE);
+        b.btnCheckUpdate.setEnabled(!session.isCheckingUpdate());
+        b.btnCheckUpdate.setText(session.isCheckingUpdate() ? R.string.btn_checking_update : R.string.btn_check_update);
         b.btnUpdate.setVisibility(connected && session.updateAvailable() ? View.VISIBLE : View.GONE);
 
         // 2. data source
