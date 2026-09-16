@@ -72,14 +72,23 @@ static bool cacheValid() {
 
 // the disconnect reason is the only thing that tells "no such network" from
 // "wrong password"; it arrives on the Wi-Fi event task
+static volatile bool s_apUp = false;        // AP_START seen (core 3.x starts the AP asynchronously)
+
 static void onWifiEvent(arduino_event_id_t ev, arduino_event_info_t info) {
-  if (ev == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) s_lastReason = info.wifi_sta_disconnected.reason;
+  switch (ev) {
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: s_lastReason = info.wifi_sta_disconnected.reason; break;
+    case ARDUINO_EVENT_WIFI_AP_START:         s_apUp = true;  logAdd("wifi: AP up"); break;
+    case ARDUINO_EVENT_WIFI_AP_STOP:          s_apUp = false; logAdd("wifi: AP down"); break;
+    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:  logAdd("wifi: AP client joined"); break;
+    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: logAdd("wifi: AP client left"); break;
+    default: break;
+  }
 }
 
 static void hookEvents() {
   if (s_eventHooked) return;
   s_eventHooked = true;
-  WiFi.onEvent(onWifiEvent, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+  WiFi.onEvent(onWifiEvent);
 }
 
 static void failTextFor(uint8_t reason, char *out, size_t len) {
@@ -168,11 +177,14 @@ void wifiApStart() {
   hookEvents();
   WiFi.persistent(false);
   WiFi.mode(s_wanted ? WIFI_AP_STA : WIFI_AP);
+  // fixed address so the page and the captive portal can name it before the
+  // (asynchronous) AP start reports it
+  WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
   // open network: it exists for the setup window only. With a station joined
   // the driver moves the AP to the station's channel by itself.
   if (!WiFi.softAP(cfg.name())) { logAdd("wifi: AP failed"); return; }
   s_apOn = true;
-  logAdd("wifi: AP %s", cfg.name());
+  logAdd("wifi: AP %s starting", cfg.name());
 }
 
 void wifiApStop() {
@@ -183,6 +195,7 @@ void wifiApStop() {
 }
 
 bool wifiApActive() { return s_apOn; }
+bool wifiApUp() { return s_apOn && s_apUp; }
 
 // ---- scan -----------------------------------------------------------------------
 

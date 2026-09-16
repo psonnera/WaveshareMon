@@ -504,12 +504,19 @@ void EpdUi::ensureInit() {
   display.init(0, true, 2, false);
   display.setRotation(0);
   inited = true;
-  // The two panel controllers idle with opposite BUSY levels (four-colour:
-  // high, SSD1681 black-and-white: low). The wrong image for the panel would
-  // otherwise just show garbage: say so in the log and the device info.
+}
+
+// The two panel controllers idle with opposite BUSY levels once initialised
+// (four-colour: high, SSD1681 black-and-white: low). GxEPD2 initialises the
+// panel lazily, so the check runs after the first refresh, before hibernate.
+// The wrong image for the panel would otherwise just show garbage: say so in
+// the log and the device info.
+void EpdUi::checkPanel() {
+  if (panelChecked) return;
+  panelChecked = true;
   int idle = digitalRead(PIN_EPD_BUSY);
   panelMismatch = idle != (BOARD_PANEL_COLOR ? HIGH : LOW);
-  if (panelMismatch) logAdd("panel: BUSY idles %s - wrong firmware image for this panel?", idle ? "high" : "low");
+  if (panelMismatch) logAdd("panel: BUSY idles %s after refresh - wrong firmware image?", idle ? "high" : "low");
 }
 
 // source name for the status page, wrapped on two short lines when needed
@@ -527,7 +534,11 @@ static const char *sourceTitle() {
 
 void EpdUi::drawStatusPage() {
   drawHeader();
-  drawText(cfg.name(), W / 2, 34, &FreeSansBold12pt7b, 1, GxEPD_BLACK, AL_CENTER);
+  {
+    uint16_t nw, nh;
+    textSize(cfg.name(), &FreeSansBold12pt7b, 1, nw, nh);
+    drawText(cfg.name(), W / 2, 34, nw <= W - 8 ? &FreeSansBold12pt7b : &FreeSansBold9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+  }
   char line[48];
   int pct = battery.percent();
   if (pct >= 0) snprintf(line, sizeof(line), "v" WSMON_VERSION "  battery %d%%", pct);
@@ -560,7 +571,7 @@ void EpdUi::drawStatusPage() {
   bool bad = strstr(line, "fail") || strstr(line, "bad") || strstr(line, "not ") || strstr(line, "error") ||
              strstr(line, "HTTP") || strstr(line, "locked") || strstr(line, "no ");
   drawText(state, W / 2, 164, &FreeSans9pt7b, 1, bad ? COL_ALERT : GxEPD_BLACK, AL_CENTER);
-  drawText("waiting for the first reading", W / 2, 182, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+  drawText("waiting for a reading", W / 2, 182, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
 }
 
 void EpdUi::render() {
@@ -582,6 +593,7 @@ void EpdUi::render() {
       drawBottomBar(side);
     }
   } while (display.nextPage());
+  checkPanel();
   display.hibernate();
   s_rtc.magic = UI_MAGIC;
   s_rtc.lastRenderUtc = (int64_t)time(nullptr);
@@ -604,6 +616,7 @@ void EpdUi::begin(bool splash) {
     drawText("v" WSMON_VERSION, W / 2, 90, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
     drawText(cfg.name(), W / 2, 130, &FreeSans9pt7b, 1, COL_ALERT, AL_CENTER);
   } while (display.nextPage());
+  checkPanel();
   display.hibernate();
   s_rtc.magic = UI_MAGIC;
   s_rtc.lastRenderUtc = (int64_t)time(nullptr);

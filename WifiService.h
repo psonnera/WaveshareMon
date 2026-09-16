@@ -22,6 +22,7 @@ void wifiHold(bool on);
 void wifiApStart();
 void wifiApStop();
 bool wifiApActive();
+bool wifiApUp();               // the driver reported the AP started
 void wifiSleep();              // radio off before deep sleep
 WifiState wifiState();
 const char *wifiStateName();

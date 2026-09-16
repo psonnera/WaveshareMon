@@ -105,10 +105,9 @@ static void handleNotFound() {
 }
 
 static void begin() {
-  wifiApStart();
-  strlcpy(s_apIp, WiFi.softAPIP().toString().c_str(), sizeof(s_apIp));
+  wifiApStart();                           // 192.168.4.1, see wifiApStart()
   s_dns.setErrorReplyCode(DNSReplyCode::NoError);
-  s_dns.start(53, "*", WiFi.softAPIP());
+  s_dns.start(53, "*", IPAddress(192, 168, 4, 1));
 
   s_server.on("/", HTTP_GET, handleRoot);
   s_server.on("/api/info", HTTP_GET, handleInfo);
@@ -124,7 +123,7 @@ static void begin() {
   s_server.onNotFound(handleNotFound);
   s_server.begin();
   s_active = true;
-  logAdd("web setup: Wi-Fi %s, http://%s", cfg.name(), s_apIp);
+  logAdd("setup page: http://%s", s_apIp);        // (log lines are 43 chars; the network is the device name)
 }
 
 static void end() {

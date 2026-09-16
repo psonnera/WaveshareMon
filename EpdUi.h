@@ -35,6 +35,8 @@ private:
   volatile bool rendering = false;
   bool     inited = false;
   bool     panelMismatch = false;
+  bool     panelChecked = false;
+  void checkPanel();              // after the first refresh
 };
 
 extern EpdUi ui;

@@ -19,6 +19,7 @@ void powerOff();                   // WaveshareMon.ino
 #include "BleXdrip4iOS.h"
 #include "BleSetupServer.h"
 #include "OtaUpdate.h"
+#include "WebSetup.h"
 #include "WifiService.h"
 #include "NightscoutClient.h"
 #include "DexcomShareClient.h"
@@ -27,6 +28,7 @@ void powerOff();                   // WaveshareMon.ino
 #include "PowerCycle.h"
 #include "Log.h"
 #include <Arduino.h>
+#include <WiFi.h>
 #include <NimBLEDevice.h>
 #include <nvs_flash.h>
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -140,6 +142,10 @@ void debugInjectPoll() {
                     dxStatus(), llStatus());
       Serial.printf("[dbg] build=%lu ota='%s' server=%lu x4i=%s pw=%s\n", (unsigned long)WSMON_BUILD, otaStatus(),
                     (unsigned long)otaLatestBuild(), xdrip4iosStateName(), cfg.x4iPassword[0] ? "set" : "none");
+      Serial.printf("[dbg] board=%s panel=%s wifimode=%d ap=%s/%s apip=%s apclients=%d web=%d\n", BOARD_NAME,
+                    ui.panelOk() ? "ok" : "MISMATCH", (int)WiFi.getMode(), wifiApActive() ? "on" : "off",
+                    wifiApUp() ? "up" : "down", WiFi.softAPIP().toString().c_str(), (int)WiFi.softAPgetStationNum(),
+                    webSetupActive());
       if (NimBLEDevice::isInitialized()) {
         int nb = NimBLEDevice::getNumBonds();
         Serial.printf("[dbg] bonds=%d", nb);
