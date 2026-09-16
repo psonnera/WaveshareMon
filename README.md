@@ -11,7 +11,7 @@ One code base, one firmware image per board (`Board.h`, chosen at build time):
 |---|---|---|
 | **ESP32-S3-ePaper-1.54G** | four-colour (black, white, red, yellow), ~20 s per refresh | `Binaries/WS_ePaper154G` |
 | **ESP32-S3-ePaper-1.54** | black and white, ~2 s per refresh | `Binaries/WS_ePaper154` |
-| **ESP32-C6-ePaper-1.54** | black and white, ESP32-C6 (16 MB flash, power switches on an I/O expander) | `Binaries/WS_ePaperC6_154` |
+| **ESP32-C6-ePaper-1.54** | black and white, ESP32-C6 (16 MB flash, power switches on an I/O expander). **Image built, not yet run on a C6 board** (the author has the two S3 boards only): reports welcome. | `Binaries/WS_ePaperC6_154` |
 
 On the black-and-white panels the warning band is a light dot pattern, the alarm band is reverse
 video (white on black), threshold lines are dotted or dashed and alert icons are white on black.
