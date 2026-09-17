@@ -5,3 +5,4 @@ local.properties
 .idea/
 .kotlin/
 captures/
+app/release/
