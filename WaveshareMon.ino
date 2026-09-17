@@ -70,14 +70,19 @@ static void bleBegin() {
   NimBLEDevice::init(cfg.source == SRC_MIBAND    ? "MI Band 2" :
                      cfg.source == SRC_XDRIP4IOS ? xdrip4iosName() : cfg.name());
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
-  if (cfg.source == SRC_MIBAND || cfg.source == SRC_XDRIP4IOS) {
-    // Phones cache the GATT table of a bonded address, and the OBB/setup-only
-    // table of the public address would hide the Mi Band services from xDrip.
-    // The Mi Band and xDrip4iOS identities therefore get their own stable
-    // static random address, derived from the public one (xDrip4iOS remembers
-    // the device by that address after the first connection).
+  {
+    // The device works under a static random address derived from the chip's
+    // public one and a nonce kept in the configuration. A factory reset, an
+    // "Erase device" flash or "unbond" renew the nonce: the phones then see a
+    // new device and pair afresh, instead of refusing with the bond they still
+    // hold for an address whose keys the device has lost. The Mi Band and
+    // xDrip4iOS identities also need an address of their own: phones cache the
+    // GATT table per address, and the setup-only table would hide their
+    // services. The name (WaveshareMon-XXXX) stays the same.
     uint8_t v[6];
     memcpy(v, NimBLEDevice::getAddress().getBase()->val, 6);
+    for (int i = 0; i < 4; i++) v[i] ^= (uint8_t)(cfg.bleNonce >> (8 * i));
+    if (cfg.source == SRC_MIBAND || cfg.source == SRC_XDRIP4IOS) v[4] ^= 0x5A;   // distinct from the setup identity
     v[5] |= 0xC0;                       // static random address marker
     NimBLEDevice::setOwnAddr(v);
     NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_RANDOM);

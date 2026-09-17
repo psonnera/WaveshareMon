@@ -2,6 +2,12 @@
 
 ## Unreleased — 1.1.0
 
+- Bluetooth address renewed after a factory reset, an **Erase device** flash or `unbond`: the
+  device works under a static random address derived from its chip address and a nonce stored
+  with the configuration, so a phone that still holds the old bond sees a new device and pairs
+  afresh instead of refusing (Android never gave up its stale bond by itself). The name stays the
+  same; the Mi Band / xDrip4iOS identity keeps its own address as before. Re-flashing without
+  erase keeps the address and the bonds.
 - Three boards from one code base: `Board.h` describes the **ESP32-S3-ePaper-1.54G** (four-colour,
   default), the **ESP32-S3-ePaper-1.54** (black and white, same pins) and the
   **ESP32-C6-ePaper-1.54** (black and white, ESP32-C6, 16 MB flash, power switches on a TCA9554

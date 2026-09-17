@@ -230,10 +230,13 @@ void debugInjectPoll() {
     } else if (strcmp(line, "mbforget") == 0) {
       miBandForgetKey();
     } else if (strcmp(line, "unbond") == 0) {
-      // forget the phone without touching the configuration (re-pair afterwards)
+      // forget the phone without touching the configuration; the device also takes a
+      // new Bluetooth address at the reboot, so the phone pairs afresh without a Forget
       if (NimBLEDevice::isInitialized()) { obbStop(); NimBLEDevice::deleteAllBonds(); }
-      Serial.println("[dbg] bonds deleted");
-      if (cfg.source == SRC_OBB) obbBegin();
+      cfg.renewBleAddress();
+      Serial.println("[dbg] bonds deleted, new address at reboot");
+      delay(200);
+      ESP.restart();
     } else if (strcmp(line, "factory") == 0) {
       cfg.factoryReset();
       if (NimBLEDevice::isInitialized()) NimBLEDevice::deleteAllBonds();

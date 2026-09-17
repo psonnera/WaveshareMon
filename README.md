@@ -197,6 +197,11 @@ python -m esptool --chip esp32s3 --port COM4 --baud 921600 --before usb-reset wr
   seconds. If the phone has forgotten the device (Bluetooth settings › Forget, or the bond was
   lost), open **Pairing mode** on the bridge screen again; the device re-pairs by itself within a
   minute.
+- The other way round is handled too: after a factory reset, an **Erase device** flash or the
+  serial `unbond`, the device takes a new Bluetooth address (a static random address derived from
+  its chip address and a stored nonce), so a phone that still holds the old bond sees a new device
+  and pairs afresh. The stale entry can be removed from the phone's Bluetooth settings at leisure.
+  Re-flashing without erase keeps address and bonds.
 - The ESP32-S3 controller cannot start a connection while it is advertising; the firmware pauses
   the setup advertising for the duration of the connection attempt.
 - In Mi Band mode the device uses a separate Bluetooth address (its public address with the top

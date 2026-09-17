@@ -81,6 +81,10 @@ struct AppConfig {
   // OBB options
   uint8_t  obbStatusLine   = 0;    // subscribe to the optional status line
   uint8_t  bleSecureConn   = 1;    // LE Secure Connections for bonding (0 = legacy pairing), debug aid
+  // mixed into the Bluetooth address (random static). Generated when missing, i.e.
+  // after a factory reset or an "Erase device" flash, so the phones see a new
+  // device and pair afresh instead of refusing with their stale bond.
+  uint32_t bleNonce        = 0;
   // custom name (empty = WaveshareMon-XXXX from the MAC)
   char     deviceName[25]  = "";
 
@@ -92,6 +96,7 @@ struct AppConfig {
   void save();
   void factoryReset();
   void markConfigured();
+  void renewBleAddress();          // new nonce (unbond): the phones see a new device after the reboot
 
   bool isMgdl() const { return units == UNITS_MGDL; }
   bool wifiConfigured() const { return wifiSsid[0] != 0; }
