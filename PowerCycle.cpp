@@ -252,7 +252,11 @@ void cycleTick() {
   uint32_t window = cfg.source == SRC_OBB ? WINDOW_BLE_MS :
                     (cfg.source == SRC_MIBAND || cfg.source == SRC_XDRIP4IOS) ? WINDOW_PUSH_MS : WINDOW_WIFI_MS;
   bool contacted = gs.sourceSeq != s_seqAtWake;
-  bool over = s_sleepNow || contacted || (millis() - s_wakeMs) > window;
+  bool newReading = gs.readingSeq != s_readingsAtWake;
+  // the push sources resend their latest reading on every connection: a stale
+  // one does not end the window, the new one (or the timeout) does
+  bool push = cfg.source == SRC_MIBAND || cfg.source == SRC_XDRIP4IOS;
+  bool over = s_sleepNow || (contacted && (newReading || !push)) || (millis() - s_wakeMs) > window;
   if (!over) return;
   if (ui.busy() || audio.isPlaying()) return;
   finishAndSleep(contacted);

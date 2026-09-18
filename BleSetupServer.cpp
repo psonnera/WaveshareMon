@@ -373,9 +373,13 @@ void setupServerTick() {
     if (ci.getConnHandle() == h) bleRepersistBond(ci.getIdAddress());
   }
   // the controller refuses to (re)start advertising while a central connection
-  // is being established (rc 519): keep retrying while setup mode is wanted
+  // is being established (rc 519): keep retrying while setup mode is wanted.
+  // NimBLE stops advertising when a client connects; the push sources (Mi Band,
+  // xDrip4iOS) must stay discoverable for the pushing phone even while the
+  // setup app holds a link from another phone, so they re-advertise regardless.
   static uint32_t lastAdvRetryMs = 0;
-  if (wantAdvertising() && s_clients == 0 && !NimBLEDevice::getAdvertising()->isAdvertising() &&
+  bool pushSource = cfg.source == SRC_MIBAND || cfg.source == SRC_XDRIP4IOS;
+  if (wantAdvertising() && (s_clients == 0 || pushSource) && !NimBLEDevice::getAdvertising()->isAdvertising() &&
       millis() - lastAdvRetryMs > 3000) {
     lastAdvRetryMs = millis();
     NimBLEDevice::startAdvertising();

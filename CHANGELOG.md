@@ -2,6 +2,12 @@
 
 ## Unreleased — 1.1.0
 
+- xDrip4iOS / Mi Band: the device keeps advertising for the pushing phone while the setup app
+  holds a link from another phone (NimBLE stops advertising on a connection and the firmware
+  only restarted it once every client had left, so opening the Android app blocked the iPhone),
+  and a wake window no longer ends on the stale reading the phone resends at each connection:
+  it waits for a new one, or the timeout. Reported on an xDrip4iOS device that showed
+  `xDrip4iOS: waiting` and a crossed-out value whenever the Android app was open.
 - App: **Install firmware (USB)** — first programming from the phone, without a computer. The
   board plugs into the phone with a USB-OTG cable; the app resets it into the ROM bootloader,
   identifies the chip (ESP32-S3 or ESP32-C6), reads the Web Flasher's manifest for the chosen
