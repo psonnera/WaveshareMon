@@ -1,5 +1,6 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")   // the ESP flasher (esp/*.kt) comes from M5StackLoader
 }
 
 android {
@@ -26,6 +27,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
     buildFeatures {
         viewBinding = true
     }
@@ -40,6 +45,8 @@ android {
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
+    // USB serial for the firmware install over USB-OTG (CDC on the ESP32-S3/C6 native USB)
+    implementation("com.github.mik3y:usb-serial-for-android:3.10.0")
 
     testImplementation("junit:junit:4.13.2")
 }

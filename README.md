@@ -93,7 +93,11 @@ and the audio codec rails stay powered (the RTC shares the codec's I2C bus).
 ## Flashing
 
 Use the web flasher (Chrome/Edge): **https://psonnera.github.io/WaveshareMon/Flasher/** (GitHub
-Pages serves the repository), or open `Flasher/index.html` from a local web server.
+Pages serves the repository), or open `Flasher/index.html` from a local web server. Without a
+computer, the Android app's **Install firmware (USB)** does the same from the phone over a
+USB-OTG cable: it identifies the chip, you pick the panel, and it writes the images of the
+flasher manifest (M5StackLoader's flasher, MD5-verified), optionally blanking the settings for a
+first install.
 The board uses the ESP32-S3 native USB (no driver). If no port appears, hold **BOOT** while
 plugging in the cable.
 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Espressif native USB (USB-Serial/JTAG): ESP32-S3 and ESP32-C6 Waveshare e-paper boards -->
+    <usb-device vendor-id="12346" product-id="4097" />
+    <!-- Espressif native USB in USB-OTG/CDC download mode -->
+    <usb-device vendor-id="12346" product-id="2" />
+</resources>

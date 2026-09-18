@@ -61,6 +61,7 @@ public class MainActivity extends AppCompatActivity implements DeviceSession.Lis
         b.btnDevice.setOnClickListener(v -> startActivity(new Intent(this, DeviceActivity.class)));
         b.btnUpdate.setOnClickListener(v -> FirmwareUpdateFlow.start(this, session));
         b.btnCheckUpdate.setOnClickListener(v -> session.checkForUpdate());
+        b.btnFlash.setOnClickListener(v -> startActivity(new Intent(this, FlashActivity.class)));
 
         // the silent bridge restarts with the app when it was left on
         if (new ObbPrefs(this).serverEnabled())

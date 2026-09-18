@@ -146,6 +146,13 @@ remove it), Gradle wrapper 8.14.3 / AGP 8.13.
 cd Android/xDripOBB
 gradlew.bat assembleDebug testDebugUnitTest
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+The app builds with Kotlin as well as Java: the `esp` package (ESP32 serial-bootloader flasher
+behind **Install firmware (USB)**) is taken from [M5StackLoader](https://github.com/psonnera/M5StackLoader)
+(GPL v3, same author) with the ESP32-C6 added, and needs
+[usb-serial-for-android](https://github.com/mik3y/usb-serial-for-android) (MIT, via JitPack).
+`assets/stub_flasher/` holds Espressif's flasher stubs from esptool (Apache 2.0, licence
+alongside).
 ```
 
 The Android emulator (API 33+ images) has a virtual Bluetooth controller: the GATT server opens

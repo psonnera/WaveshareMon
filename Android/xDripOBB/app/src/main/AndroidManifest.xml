@@ -27,6 +27,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -66,6 +67,15 @@
             android:label="@string/title_device" android:parentActivityName=".ui.MainActivity" />
         <activity android:name=".ui.BridgeActivity" android:exported="false"
             android:label="@string/title_bridge" android:parentActivityName=".ui.SourceActivity" />
+        <!-- firmware install over USB-OTG; opens when a board's native USB port is plugged in -->
+        <activity android:name=".ui.FlashActivity" android:exported="true" android:launchMode="singleTop"
+            android:label="@string/title_flash" android:parentActivityName=".ui.MainActivity">
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
+        </activity>
 
         <!-- OBB GATT server; foreground service of type connectedDevice (API 34+) -->
         <service

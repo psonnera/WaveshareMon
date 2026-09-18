@@ -2,6 +2,14 @@
 
 ## Unreleased — 1.1.0
 
+- App: **Install firmware (USB)** — first programming from the phone, without a computer. The
+  board plugs into the phone with a USB-OTG cable; the app resets it into the ROM bootloader,
+  identifies the chip (ESP32-S3 or ESP32-C6), reads the Web Flasher's manifest for the chosen
+  panel (four-colour or black-and-white), downloads the images and writes them with Espressif's
+  flasher stub, MD5-verified, then optionally blanks the settings partition (first install) and
+  reboots the board into setup mode for the usual Bluetooth configuration. The ESP
+  serial-bootloader code is M5StackLoader's `esp` package (Kotlin, GPL v3), extended with the
+  ESP32-C6; the app now builds with Kotlin and usb-serial-for-android.
 - Bluetooth address renewed after a factory reset, an **Erase device** flash or `unbond`: the
   device works under a static random address derived from its chip address and a nonce stored
   with the configuration, so a phone that still holds the old bond sees a new device and pairs
