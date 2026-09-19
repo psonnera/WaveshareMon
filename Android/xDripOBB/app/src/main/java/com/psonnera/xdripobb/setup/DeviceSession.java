@@ -50,6 +50,13 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
     private String state = "";
     private boolean connected = false;
     private boolean scanning = false;
+    // a scan is 3 attempts of 60 s, restarted between them: a bounded, explainable wait
+    public static final int SCAN_ATTEMPTS = 3;
+    public static final long SCAN_ATTEMPT_MS = 60_000;
+    private int scanAttempt = 0;
+    private long scanAttemptEnd = 0;
+    private String autoConnectAddress = null;   // reconnect: connect as soon as this device is seen
+    private boolean reconnectFailed = false;
     private JSONObject info = null;
     private JSONObject config = null;
     private long infoAt = 0;
@@ -86,6 +93,10 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
     public boolean isConnected() { return connected; }
     public boolean isReady() { return client.isReady(); }
     public boolean isScanning() { return scanning; }
+    public int scanAttempt() { return scanAttempt; }
+    public boolean isReconnecting() { return scanning && autoConnectAddress != null; }
+    public boolean reconnectFailed() { return reconnectFailed; }
+    public int scanRemainingS() { return (int) Math.max(0, (scanAttemptEnd - System.currentTimeMillis() + 999) / 1000); }
     public JSONObject info() { return info; }
     public JSONObject config() { return config; }
     public JSONObject wifiScan() { return wifiScan; }
@@ -104,24 +115,80 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
 
     // ------------------------------------------------------------------ actions
 
+    /**
+     * Scan for the device the app last connected to and connect to it by itself when it
+     * shows up (3 attempts of 60 s, like a manual scan). False when there is no stored
+     * device, or a link or scan is already running.
+     */
+    public boolean reconnectLast() {
+        String addr = new ObbPrefs(app).deviceAddress();
+        if (addr == null || addr.length() < 17 || connected || scanning) return false;
+        autoConnectAddress = addr;
+        reconnectFailed = false;
+        addLog(app.getString(R.string.log_reconnect, addr));
+        startScan();
+        return true;
+    }
+
     public void startScan() {
         found.clear();
         foundNames.clear();
         scanning = true;
-        client.startScan();
+        scanAttempt = 1;
+        beginAttempt();
         changed();
     }
 
+    private void beginAttempt() {
+        scanAttemptEnd = System.currentTimeMillis() + SCAN_ATTEMPT_MS;
+        client.startScan();
+        handler.removeCallbacks(scanStep);
+        handler.postDelayed(scanStep, SCAN_ATTEMPT_MS);
+    }
+
+    /** end of one attempt: the next one, or give up with a state the page can show */
+    private final Runnable scanStep = new Runnable() {
+        @Override public void run() {
+            if (!scanning) return;
+            client.stopScan();
+            if (scanAttempt < SCAN_ATTEMPTS) {
+                scanAttempt++;
+                beginAttempt();
+            } else {
+                scanning = false;
+                if (autoConnectAddress != null) {
+                    autoConnectAddress = null;
+                    reconnectFailed = true;
+                    state = app.getString(R.string.state_reconnect_failed);
+                } else {
+                    state = found.isEmpty() ? app.getString(R.string.state_scan_none, SCAN_ATTEMPTS)
+                                            : app.getString(R.string.state_scan_done);
+                }
+            }
+            changed();
+        }
+    };
+
     public void stopScan() {
+        handler.removeCallbacks(scanStep);
         scanning = false;
+        autoConnectAddress = null;
         client.stopScan();
         changed();
     }
 
     public void connect(BluetoothDevice d) {
+        handler.removeCallbacks(scanStep);
         scanning = false;
+        autoConnectAddress = null;
+        reconnectFailed = false;
         config = null;
-        try { new ObbPrefs(app).setDeviceAddress(d.getAddress()); } catch (SecurityException ignored) {}
+        try {
+            ObbPrefs prefs = new ObbPrefs(app);
+            prefs.setDeviceAddress(d.getAddress());
+            String n = d.getName();
+            prefs.setDeviceName(n != null ? n : "");
+        } catch (SecurityException ignored) {}
         client.connect(d);
     }
 
@@ -177,6 +244,10 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
         if (found.containsKey(device.getAddress())) return;
         found.put(device.getAddress(), device);
         foundNames.put(device.getAddress(), name + "  " + rssi + " dBm");
+        if (autoConnectAddress != null && autoConnectAddress.equalsIgnoreCase(device.getAddress())) {
+            connect(device);        // the reconnect found its device
+            return;
+        }
         changed();
     }
 
@@ -191,9 +262,11 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
             handler.postDelayed(infoPoll, INFO_POLL_MS);
             client.readConfig();
         }
+        if (isConnected) new ObbPrefs(app).setLastLinkMs(System.currentTimeMillis());
         if (wasConnected && !isConnected) {
             handler.removeCallbacks(infoPoll);
             info = null;
+            new ObbPrefs(app).setLastLinkMs(System.currentTimeMillis());
         }
         changed();
     }
@@ -229,7 +302,15 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
 
     @Override
     public void onConfig(String json) {
-        try { config = new JSONObject(json); addLog(app.getString(R.string.log_config_read)); }
+        try {
+            config = new JSONObject(json); addLog(app.getString(R.string.log_config_read));
+            // the bridge forwards the status line and xDrip's alerts only when the device asks
+            // for them: one setting, on the device, instead of a switch on each side
+            boolean obb = config.optInt("src", -1) == ConfigFields.SRC_OBB;
+            ObbPrefs p = new ObbPrefs(app);
+            p.setStatusLineEnabled(obb && config.optInt("sline", 1) == 1);
+            p.setBroadcastAlarms(obb && config.optInt("arem", 0) == 1);
+        }
         catch (JSONException e) { addLog("config parse error: " + e.getMessage()); }
         changed();
     }

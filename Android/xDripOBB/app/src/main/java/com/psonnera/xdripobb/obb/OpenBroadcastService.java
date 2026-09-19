@@ -125,13 +125,11 @@ public class OpenBroadcastService extends Service {
     private String latestSource = "";
     private ObbAlarm lastAlarm = null;
     private String statusLine = "";
-    private boolean statusLineEnabled = true;
-    private boolean broadcastAlarms = true;
 
     private final Runnable reregister = new Runnable() {
         @Override
         public void run() {
-            if (prefs.xdripApiEnabled()) XdripApi.register(OpenBroadcastService.this);
+            XdripApi.register(OpenBroadcastService.this);
             handler.postDelayed(this, REREGISTER_MS);
         }
     };
@@ -142,8 +140,6 @@ public class OpenBroadcastService extends Service {
     public void onCreate() {
         super.onCreate();
         prefs = new ObbPrefs(this);
-        statusLineEnabled = prefs.statusLineEnabled();
-        broadcastAlarms = prefs.broadcastAlarms();
         BluetoothManager bm = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         adapter = bm != null ? bm.getAdapter() : null;
         createChannel();
@@ -180,7 +176,7 @@ public class OpenBroadcastService extends Service {
             log("alarm from " + src + ": type " + type);
             sendAlarm(type, latest != null ? latest.mgdl : Double.NaN);
         } else if (ACTION_REGISTER.equals(action)) {
-            if (prefs.xdripApiEnabled()) XdripApi.register(this);
+            XdripApi.register(this);
         }
         if (prefs.serverEnabled() && !serverRunning) startServer();
         return START_STICKY;
@@ -242,14 +238,14 @@ public class OpenBroadcastService extends Service {
         if (Double.isNaN(r.mgdl) || r.mgdl <= 0) return;
         // xDrip's two broadcasts and AAPS all carry the same reading: keep the first copy
         if (latest != null && r.timestampMs <= latest.timestampMs) {
-            if (sline != null && statusLineEnabled) applyStatusLine(sline);
+            if (sline != null && prefs.statusLineEnabled()) applyStatusLine(sline);
             return;
         }
         latestSource = source;
         log(source + ": " + r);
         prefs.setLast(r.mgdl, r.timestampMs);
         setReading(r);
-        if (sline != null && statusLineEnabled) applyStatusLine(sline);
+        if (sline != null && prefs.statusLineEnabled()) applyStatusLine(sline);
     }
 
     private void applyStatusLine(String text) {
@@ -272,7 +268,7 @@ public class OpenBroadcastService extends Service {
     public boolean isPairingWindowOpen() { return getPairingWindowRemainingMs() > 0; }
 
     /** the device the setup pages connected to, or its Mi Band-mode address (first byte | 0xC0) */
-    private boolean isOurDevice(String address) {
+    public boolean isOurDevice(String address) {
         String known = prefs != null ? prefs.deviceAddress() : "";
         if (known == null || known.length() < 17 || address == null || address.length() < 17) return false;
         if (known.equalsIgnoreCase(address)) return true;
@@ -286,13 +282,13 @@ public class OpenBroadcastService extends Service {
 
     public void enableServer(boolean on) {
         prefs.setServerEnabled(on);
-        if (on) { startServer(); if (prefs.xdripApiEnabled()) XdripApi.register(this); }
+        if (on) { startServer(); XdripApi.register(this); }
         else stopServer();
     }
 
     /** ask xDrip for its latest reading (and refresh the registration) */
     public void requestNow() {
-        if (prefs.xdripApiEnabled()) XdripApi.register(this);
+        XdripApi.register(this);
     }
 
     /** 3.6 rule 4: opens the bonding window for PAIRING_WINDOW_MS. */
@@ -331,19 +327,18 @@ public class OpenBroadcastService extends Service {
         lastAlarm = a;
         byte[] pkt = a.encode(System.currentTimeMillis());
         log("alarm " + a + " -> [" + ObbProtocol.hex(pkt) + "]");
-        if (!broadcastAlarms) { log("  (alarm broadcast disabled)"); return; }
+        if (!prefs.broadcastAlarms()) { log("  (alarm broadcast disabled)"); return; }
         if (alarmChar != null) {
             setValue(alarmChar, pkt);
             for (BluetoothDevice d : subscribers(ObbProtocol.ALARM_UUID)) sendNotify(d, alarmChar, pkt);
         }
     }
 
-    public void setBroadcastAlarms(boolean on) { broadcastAlarms = on; prefs.setBroadcastAlarms(on); }
+    public void setBroadcastAlarms(boolean on) { prefs.setBroadcastAlarms(on); }
 
     /** 3.5 status line: opaque UTF-8 text; refreshed by notify, full text via long read. */
     public void setStatusLine(String text, boolean enabled) {
         statusLine = text == null ? "" : text;
-        statusLineEnabled = enabled;
         prefs.setStatusLineEnabled(enabled);
         if (statusLineChar != null) {
             byte[] v = enabled ? statusLine.getBytes(StandardCharsets.UTF_8) : new byte[0];
@@ -433,7 +428,7 @@ public class OpenBroadcastService extends Service {
 
     private void applyValues() {
         if (latest != null) setValue(glucoseChar, latest.encode(System.currentTimeMillis()));
-        setValue(statusLineChar, statusLineEnabled ? statusLine.getBytes(StandardCharsets.UTF_8) : new byte[0]);
+        setValue(statusLineChar, prefs.statusLineEnabled() ? statusLine.getBytes(StandardCharsets.UTF_8) : new byte[0]);
     }
 
     private void stopServer() {
@@ -582,7 +577,7 @@ public class OpenBroadcastService extends Service {
             } else if (c.getUuid().equals(ObbProtocol.STATUS_UUID)) {
                 value = statusPacket();
             } else if (c.getUuid().equals(ObbProtocol.STATUS_LINE_UUID)) {
-                value = statusLineEnabled ? statusLine.getBytes(StandardCharsets.UTF_8) : new byte[0];
+                value = prefs.statusLineEnabled() ? statusLine.getBytes(StandardCharsets.UTF_8) : new byte[0];
             } else {
                 respond(device, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
                 return;
@@ -638,7 +633,7 @@ public class OpenBroadcastService extends Service {
                 byte[] pkt = latest != null ? latest.encode(System.currentTimeMillis())
                         : ObbProtocol.encodeGlucose(ObbProtocol.FLAG_STALE, -1, -1, Integer.MIN_VALUE, ObbProtocol.TREND_UNKNOWN);
                 handler.postDelayed(() -> { if (sendNotify(device, glucoseChar, pkt)) log("  notify-on-subscribe [" + ObbProtocol.hex(pkt) + "]"); }, 100);
-            } else if (enable && cu.equals(ObbProtocol.STATUS_LINE_UUID) && statusLineEnabled) {
+            } else if (enable && cu.equals(ObbProtocol.STATUS_LINE_UUID) && prefs.statusLineEnabled()) {
                 byte[] v = statusLine.getBytes(StandardCharsets.UTF_8);
                 byte[] head = v.length > 20 ? Arrays.copyOf(v, 20) : v;
                 handler.postDelayed(() -> sendNotify(device, statusLineChar, head), 150);
@@ -746,7 +741,7 @@ public class OpenBroadcastService extends Service {
         public void onReceive(Context context, Intent intent) {
             Bundle b = intent != null ? intent.getExtras() : null;
             String fn = b != null ? b.getString(XdripApi.KEY_FUNCTION, "") : "";
-            if (XdripApi.FN_START.equals(fn) && prefs.xdripApiEnabled()) {
+            if (XdripApi.FN_START.equals(fn)) {
                 log("xDrip API started, registering");
                 XdripApi.register(OpenBroadcastService.this);
             }

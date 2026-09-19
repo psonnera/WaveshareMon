@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- home page: OBB reading and connected displays on top (hidden for the other sources),
+     then six square buttons, then the device status with the firmware update buttons -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -20,184 +22,110 @@
             android:textSize="22sp"
             android:textStyle="bold" />
 
-        <!-- 1. device -->
+        <!-- OBB source only: the reading this phone relays and who receives it -->
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardObb"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="10dp"
+            android:visibility="gone"
             app:cardCornerRadius="10dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="12dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:id="@+id/tvBg"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/home_bg_none"
+                        android:textSize="48sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/tvTrend"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:textSize="40sp" />
+                    <TextView
+                        android:id="@+id/tvDelta"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:textSize="15sp" />
+                </LinearLayout>
                 <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/section_device"
-                    android:textStyle="bold" />
-                <TextView
-                    android:id="@+id/tvDevice"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/home_not_connected" />
-                <Button
-                    android:id="@+id/btnCheckUpdate"
+                    android:id="@+id/tvDevices"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="@string/btn_check_update"
-                    android:visibility="gone"
-                    style="@style/Widget.Material3.Button.TonalButton" />
-                <Button
-                    android:id="@+id/btnUpdate"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/cmd_update"
-                    android:visibility="gone" />
-                <Button
-                    android:id="@+id/btnFlash"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/btn_flash"
-                    style="@style/Widget.Material3.Button.TonalButton" />
-                <Button
-                    android:id="@+id/btnConnection"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/btn_connection" />
+                    android:textSize="14sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 2. data source -->
-        <com.google.android.material.card.MaterialCardView
+        <!-- the six pages -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            app:cardCornerRadius="10dp">
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/title_source"
-                    android:textStyle="bold" />
-                <TextView
-                    android:id="@+id/tvSource"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/home_connect_to_read" />
-                <Button
-                    android:id="@+id/btnSource"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/btn_source" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+            android:orientation="horizontal">
+            <com.psonnera.xdripobb.ui.SquareButton
+                android:id="@+id/btnProgram"
+                style="@style/HomeSquare"
+                android:text="@string/btn_home_program"
+                app:icon="@drawable/ic_flash" />
+            <com.psonnera.xdripobb.ui.SquareButton
+                android:id="@+id/btnConnect"
+                style="@style/HomeSquare"
+                android:text="@string/btn_home_connect"
+                app:icon="@drawable/ic_plug" />
+            <com.psonnera.xdripobb.ui.SquareButton
+                android:id="@+id/btnSource"
+                style="@style/HomeSquare"
+                android:text="@string/btn_home_source"
+                app:icon="@drawable/ic_database" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <com.psonnera.xdripobb.ui.SquareButton
+                android:id="@+id/btnDisplay"
+                style="@style/HomeSquare"
+                android:text="@string/btn_home_display"
+                app:icon="@drawable/ic_display" />
+            <com.psonnera.xdripobb.ui.SquareButton
+                android:id="@+id/btnAlarms"
+                style="@style/HomeSquare"
+                android:text="@string/btn_home_alarms"
+                app:icon="@drawable/ic_bell" />
+            <com.psonnera.xdripobb.ui.SquareButton
+                android:id="@+id/btnSettings"
+                style="@style/HomeSquare"
+                android:text="@string/btn_home_settings"
+                app:icon="@drawable/ic_wrench" />
+        </LinearLayout>
 
-        <!-- 3. display -->
-        <com.google.android.material.card.MaterialCardView
+        <!-- setup link state (firmware updates live on the PROGRAM page) -->
+        <TextView
+            android:id="@+id/tvDevice"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            app:cardCornerRadius="10dp">
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/title_display"
-                    android:textStyle="bold" />
-                <TextView
-                    android:id="@+id/tvDisplay"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/home_connect_to_read" />
-                <Button
-                    android:id="@+id/btnDisplay"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/btn_display"
-                    style="@style/Widget.Material3.Button.TonalButton" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- 4. alarms -->
-        <com.google.android.material.card.MaterialCardView
+            android:layout_marginTop="12dp"
+            android:textSize="13sp"
+            android:text="@string/home_not_connected" />
+        <Button
+            android:id="@+id/btnReconnect"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            app:cardCornerRadius="10dp">
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/title_alarms"
-                    android:textStyle="bold" />
-                <TextView
-                    android:id="@+id/tvAlarms"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/home_connect_to_read" />
-                <Button
-                    android:id="@+id/btnAlarms"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/btn_alarms"
-                    style="@style/Widget.Material3.Button.TonalButton" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- 5. device settings -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            app:cardCornerRadius="10dp">
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/title_device"
-                    android:textStyle="bold" />
-                <TextView
-                    android:id="@+id/tvSettings"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/home_connect_to_read" />
-                <Button
-                    android:id="@+id/btnDevice"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/btn_device"
-                    style="@style/Widget.Material3.Button.TonalButton" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+            android:layout_marginTop="6dp"
+            android:visibility="gone"
+            style="@style/Widget.Material3.Button.TonalButton" />
     </LinearLayout>
 </ScrollView>

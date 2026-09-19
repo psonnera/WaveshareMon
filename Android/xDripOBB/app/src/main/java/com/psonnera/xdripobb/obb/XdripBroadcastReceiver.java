@@ -27,8 +27,6 @@ public class XdripBroadcastReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent == null || !ACTION_NEW_BG_ESTIMATE.equals(intent.getAction())) return;
-        ObbPrefs prefs = new ObbPrefs(context);
-        if (!prefs.xdripLegacyEnabled()) return;
 
         double mgdl = intent.getDoubleExtra(EXTRA_BG_ESTIMATE, Double.NaN);
         double slope = intent.getDoubleExtra(EXTRA_BG_SLOPE, Double.NaN);

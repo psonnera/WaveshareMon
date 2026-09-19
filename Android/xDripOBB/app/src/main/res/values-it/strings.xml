@@ -13,7 +13,6 @@
     <string name="title_alarms">Allarmi</string>
     <string name="title_device">Impostazioni dispositivo</string>
     <string name="title_bridge">Bridge Bluetooth</string>
-    <string name="section_device">Dispositivo</string>
     <string name="section_commands">Comandi</string>
     <string name="section_device_info">Info dispositivo</string>
     <string name="section_log">Log</string>
@@ -28,29 +27,31 @@
     <string name="home_on_usb">, su USB</string>
     <string name="home_woke">\nRisveglio da %1$s, attivo da %2$d s</string>
     <string name="home_status_page">\nIl dispositivo mostra la pagina di stato fino alla prima lettura.</string>
-    <string name="home_connect_to_read">Connettiti per leggere.</string>
-    <string name="home_connect_source">Connettiti per leggere la sorgente attuale.</string>
-    <string name="home_reading">Lettura in corso…</string>
-    <string name="home_device_reading">\nDispositivo: %1$d mg/dl, %2$d min fa</string>
-    <string name="home_bridge_on">\nBridge attivo</string>
-    <string name="home_bridge_off">\nBridge spento</string>
-    <string name="home_bridge_reading">: %1$.0f mg/dl %2$s, %3$d min fa (%4$s)</string>
-    <string name="home_display_summary">%1$s, giallo %2$s-%3$s, rosso %4$s-%5$s, orologio %6$s</string>
-    <string name="clock_24">24 h</string>
-    <string name="clock_12">12 h</string>
-    <string name="home_alarms_off">Disattivati</string>
-    <string name="home_alarms_summary">Attivi: avviso %1$s-%2$s, allarme %3$s-%4$s, nessuna lettura %5$d min, posticipo %6$d min</string>
-    <string name="home_default_name">Nome predefinito</string>
-    <string name="home_settings_summary">%1$s, fuso orario %2$s</string>
-    <string name="btn_connection">Connessione</string>
-    <string name="btn_flash">Installa firmware (USB)</string>
+    <string name="home_no_reading">Nessuna lettura finora</string>
+    <string name="home_bridge_off">Bridge spento</string>
+    <string name="home_bridge_off_hint">Bridge spento: attivalo in SORGENTE.</string>
+    <string name="home_no_device_connected">Nessun display connesso</string>
+    <string name="home_connected_devices">Invia le letture a %1$s</string>
+    <string name="home_unit_age">%1$s, %2$d min fa</string>
+    <string name="home_delta_age">%1$s %2$s, %3$d min fa</string>
+    <string name="btn_home_program">PROGRAMMA</string>
+    <string name="btn_home_connect">CONNETTI</string>
+    <string name="btn_home_source">SORGENTE</string>
+    <string name="btn_home_display">SCHERMO</string>
+    <string name="btn_home_alarms">ALLARMI</string>
+    <string name="btn_home_settings">OPZIONI</string>
+    <string name="clock_24">24 ore</string>
+    <string name="clock_12">12 ore</string>
+    <string name="date_dmy">Giorno/Mese</string>
+    <string name="date_mdy">Mese/Giorno</string>
     <string name="title_flash">Installa firmware</string>
-    <string name="flash_intro">Installa il firmware dal repository GitHub su una scheda collegata a questo telefono con un cavo USB-OTG (prima programmazione, o dispositivo che non può aggiornarsi da solo). Il telefono identifica il chip; tu scegli solo lo schermo. Non scollegare durante l\'operazione.</string>
     <string name="flash_panel_label">Schermo della scheda</string>
-    <string name="flash_panel_color">Quattro colori (ESP32-S3-ePaper-1.54G)</string>
-    <string name="flash_panel_bw">Bianco e nero (ESP32-S3-ePaper-1.54 o ESP32-C6-ePaper-1.54)</string>
+    <string name="flash_panel_color_short">S3 Colori</string>
+    <string name="flash_panel_bw_short">S3/C6 B/N</string>
     <string name="flash_erase">Cancella impostazioni e associazione (prima installazione)</string>
     <string name="flash_install">Installa</string>
+    <string name="btn_update_device">AGGIORNA DISPOSITIVO</string>
+    <string name="update_none">Nessun aggiornamento disponibile (il build %1$d è l’ultimo)</string>
     <string name="flash_plug_in">Collega la scheda al telefono con un cavo USB-OTG.</string>
     <string name="flash_device_found">Scheda trovata sull\'USB. Scegli lo schermo e premi Installa.</string>
     <string name="flash_permission_denied">Accesso USB rifiutato. Premi di nuovo Installa e consentilo.</string>
@@ -65,10 +66,6 @@
     <string name="flash_after">La scheda si avvia in modalità configurazione: vai in Connessione, cerca e connettiti per configurarla.</string>
     <string name="flash_log_images">immagini: %1$s build %2$s per %3$s</string>
     <string name="flash_log_rom_fallback">Lo stub di flash ha rifiutato (%1$s): uso del flasher ROM, più lento</string>
-    <string name="btn_source">Sorgente dati e connessione</string>
-    <string name="btn_display">Impostazioni schermo</string>
-    <string name="btn_alarms">Impostazioni allarmi</string>
-    <string name="btn_device">Nome, fuso orario, comandi, log</string>
     <string name="src_suffix_wifi"> (Wi-Fi)</string>
     <string name="src_suffix_bt"> (Bluetooth)</string>
 
@@ -76,9 +73,24 @@
     <string name="conn_intro">Il dispositivo è visibile per 10 minuti dopo l\'avvio, in permanenza finché non è configurato, oppure dopo aver tenuto premuto il pulsante BOOT per 3 secondi. Tocca il dispositivo appena compare, poi accetta la richiesta di associazione del telefono (Android può mostrarne due).</string>
     <string name="btn_scan">Cerca</string>
     <string name="btn_disconnect">Disconnetti</string>
-    <string name="btn_refresh">Aggiorna</string>
+    <string name="conn_none_yet">Nessun dispositivo ancora connesso</string>
+    <string name="conn_not_connected_last">Non connesso. Ultimo dispositivo: %1$s</string>
+    <string name="conn_role_setup">Collegamento di configurazione</string>
+    <string name="conn_role_bridge">Riceve le letture da questo telefono</string>
+    <string name="conn_also_bridge">\nRiceve anche le letture da questo telefono</string>
+    <string name="conn_paired">\nAssociato a questo telefono</string>
+    <string name="conn_not_paired">\nNon associato a questo telefono: vedi la modalità associazione in SORGENTE</string>
+    <string name="conn_firmware">firmware %1$s</string>
     <string name="state_not_connected">non connesso</string>
-    <string name="conn_info">%1$s  firmware %2$s</string>
+    <string name="state_scanning_attempt">ricerca, tentativo %1$d di %2$d, %3$d s rimanenti</string>
+    <string name="state_scan_none">nessun dispositivo trovato in %1$d tentativi</string>
+    <string name="state_scan_done">ricerca terminata: seleziona il dispositivo</string>
+    <string name="btn_reconnect">Riconnetti a %1$s</string>
+    <string name="state_reconnecting">Riconnessione al dispositivo…</string>
+    <string name="state_reconnecting_suffix">(riconnessione)</string>
+    <string name="state_reconnect_failed">Dispositivo non trovato. È visibile per 10 minuti dopo l’avvio, finché non è configurato, o dopo aver tenuto premuto il pulsante BOOT: tieni premuto BOOT e riprova.</string>
+    <string name="log_reconnect">riconnessione: ricerca di %1$s</string>
+    <string name="conn_scan_hint">Il dispositivo è visibile per 10 minuti dopo l’avvio e finché non è ancora configurato. Non è visibile durante i suoi risvegli ogni 5 minuti.</string>
     <string name="conn_battery">  batteria %1$d %%</string>
     <string name="conn_on_usb">  su USB</string>
     <string name="conn_address">\nIndirizzo Bluetooth %1$s</string>
@@ -89,8 +101,9 @@
     <!-- ===== pagine impostazioni (comuni) ===== -->
     <string name="btn_save">Salva sul dispositivo</string>
     <string name="page_not_connected">Non connesso: i valori non possono essere letti né salvati.</string>
+    <string name="page_connecting">Connessione, lettura del dispositivo…</string>
     <string name="nothing_changed">nessuna modifica</string>
-    <string name="hint_display">Unità, fasce gialla e rossa del valore e delle linee del grafico, formato dell\'orologio. Le soglie vengono convertite quando cambia l\'unità.</string>
+    <string name="hint_display">Unità, intervalli mostrati sullo schermo, formato di ora e data.</string>
     <string name="hint_alarms">Il dispositivo emette un avviso o un allarme quando una lettura supera questi valori, o quando non arrivano letture da un po\'. Una pressione breve di BOOT posticipa; i suoni si ripetono finché il valore non rientra nell\'intervallo.</string>
     <string name="label_with_unit">%1$s (%2$s)</string>
     <string name="hint_secret_stored">%1$s (memorizzato, lascia vuoto per mantenerlo)</string>
@@ -133,13 +146,14 @@
     <string name="field_tlsv">Verifica i certificati TLS</string>
     <string name="field_sline">Mostra la riga di stato IOB/COB dal telefono</string>
     <string name="field_units">Unità di visualizzazione</string>
-    <string name="field_ylo">Giallo sotto</string>
-    <string name="field_yhi">Giallo sopra</string>
-    <string name="field_rlo">Rosso sotto</string>
-    <string name="field_rhi">Rosso sopra</string>
-    <string name="field_t24">Orologio a 24 ore</string>
-    <string name="field_dmy">Data come giorno.mese</string>
+    <string name="field_ylo">Basso</string>
+    <string name="field_yhi">Alto</string>
+    <string name="field_rlo">Molto basso</string>
+    <string name="field_rhi">Molto alto</string>
+    <string name="field_t24">Ora</string>
+    <string name="field_dmy">Data</string>
     <string name="field_aen">Allarmi attivi</string>
+    <string name="field_arem">Usa gli avvisi di xDrip, inoltrati da questo telefono, invece delle soglie qui sotto</string>
     <string name="field_wlo">Avviso basso</string>
     <string name="field_alo">Allarme basso</string>
     <string name="field_whi">Avviso alto</string>
@@ -148,8 +162,10 @@
     <string name="field_wvol">Volume avviso (0-100)</string>
     <string name="field_avol">Volume allarme (0-100)</string>
     <string name="field_arep">Ripetizione allarme (min)</string>
-    <string name="field_snoz">Posticipo (min)</string>
+    <string name="field_snoz">Posticipo basso (min)</string>
+    <string name="field_snzh">Posticipo alto (min)</string>
     <string name="field_name">Nome dispositivo</string>
+    <string name="hint_name_auto">%1$s (nome automatico, lascia vuoto per mantenerlo)</string>
     <string name="field_tz">Fuso orario POSIX</string>
 
     <!-- ===== comandi del dispositivo ===== -->
@@ -186,7 +202,6 @@
     <string name="log_update_uptodate">firmware: aggiornato (build %1$d nel repository)</string>
     <string name="log_update_unknown_build">firmware: il dispositivo non riporta un numero di build (firmware compilato a mano); build %1$d nel repository. Aggiorna firmware nella pagina Dispositivo lo installa comunque.</string>
     <string name="log_update_check_failed">verifica del firmware non riuscita: %1$s</string>
-    <string name="btn_check_update">Cerca aggiornamenti</string>
     <string name="btn_checking_update">Verifica…</string>
     <string name="home_update_uptodate">\nFirmware aggiornato (build %1$d)</string>
     <string name="device_reading">lettura…</string>
@@ -203,17 +218,9 @@
     <string name="bridge_latest">\nultima %1$.0f mg/dl %2$s, %3$d min fa (%4$s)</string>
     <string name="bridge_no_reading">\nnessuna lettura ricevuta finora</string>
     <string name="btn_pairing">Modalità associazione (60 s)</string>
+    <string name="pairing_hint">Il dispositivo si associa solo in modalità configurazione: tieni premuto il pulsante BOOT o riavvialo, verifica che nessun collegamento di configurazione sia aperto (CONNETTI › Disconnetti), poi avvia la modalità associazione e accetta le richieste del telefono.</string>
     <string name="pairing_open">aperta, %1$d s rimanenti</string>
     <string name="pairing_closed">chiusa</string>
-    <string name="readings_from">Letture da</string>
-    <string name="in_xdrip_api">xDrip+ Broadcast Service API</string>
-    <string name="in_xdrip_api_hint">xDrip: Settings › Inter-app settings › Broadcast Service API</string>
-    <string name="in_aaps">Broadcast di stato AndroidAPS</string>
-    <string name="in_aaps_hint">AAPS: Config Builder › Synchronization › Samsung Tizen</string>
-    <string name="in_xdrip_legacy">xDrip+ Compatible Broadcast (API precedente)</string>
-    <string name="in_xdrip_legacy_hint">xDrip: Settings › Inter-app settings › Broadcast locally (aggiungi com.psonnera.xdripobb se Identify receiver è impostato)</string>
-    <string name="fwd_alarms">Inoltra gli avvisi di xDrip al dispositivo</string>
-    <string name="fwd_status_line">Inoltra la riga di stato IOB / COB</string>
     <string name="btn_bridge_details">Dettagli e log del bridge</string>
     <string name="wifi_net_item">%1$s   %2$d dBm, can. %3$d%4$s</string>
     <string name="wifi_net_open">, aperta</string>
@@ -234,7 +241,9 @@
     <string name="latest_none">ultima: ancora nessuna</string>
     <string name="latest_line">ultima: %1$s (%2$d min fa, %3$s)</string>
     <string name="bonded_devices">Dispositivi associati</string>
-    <string name="bonded_none">nessuno</string>
+    <string name="bonded_none_yet">il display non è ancora associato: apri la finestra di associazione e lascialo connettere</string>
+    <string name="bonded_no_device">nessun display configurato: connettiti prima dalla pagina iniziale</string>
+    <string name="bonded_this_display">  (questo display)</string>
     <string name="bonded_connected_suffix">  [connesso]</string>
     <string name="btn_forget">Dimentica</string>
     <string name="btn_ask_xdrip">Chiedi a xDrip ora</string>
@@ -290,7 +299,7 @@
     <string name="log_write_failed">%1$s FALLITO</string>
 
     <!-- ===== aiuti Wi-Fi nella pagina sorgente dati ===== -->
-    <string name="wifi_use_phone_network">Rete del telefono</string>
+    <string name="wifi_use_phone_network">Usa il Wi-Fi del telefono</string>
     <string name="wifi_scan_from_device">Scansione dal dispositivo</string>
     <string name="wifi_autofill_none">Questo telefono al momento non è connesso a una rete Wi-Fi.</string>
     <string name="wifi_scan_title">Reti viste dal dispositivo (2,4 GHz)</string>
@@ -299,7 +308,6 @@
     <string name="wifi_scan_unavailable">Connettiti prima al dispositivo (firmware 1.1.0 o più recente).</string>
     <string name="wifi_password_error">La password deve essere vuota (rete aperta) o lunga 8–63 caratteri</string>
     <string name="wifi_ssid_error">Inserisci il nome della rete</string>
-    <string name="wifi_privacy_link">Perché lo chiediamo?</string>
     <string name="ns_test">Prova Nightscout</string>
     <string name="ns_url_error">Inserisci l\'indirizzo del sito, es. https://miosito.example.com</string>
 
@@ -325,23 +333,4 @@
     <string name="ssid_disclosure_decline">No, grazie</string>
     <string name="wifi_autofill_button">Compila il nome della rete</string>
     <string name="wifi_autofill_settings_toast">L\'autorizzazione alla posizione è disattivata per questa app. Per usare la compilazione automatica, consenti la Posizione nella schermata delle impostazioni appena aperta.</string>
-    <string name="wifi_privacy_title">Sui tuoi dati Wi-Fi</string>
-    <string name="wifi_privacy_body"><![CDATA[
-        <b>Nome della rete (SSID):</b> per risparmiarti la digitazione, questa app può
-        leggere il nome della rete Wi-Fi a cui è connesso il telefono. Android considera
-        quel nome un dato di posizione, quindi per leggerlo serve l’autorizzazione alla
-        posizione. Questa app usa l’accesso alla posizione solo per questo: non legge mai
-        la tua posizione GPS e non ti traccia mai. La compilazione automatica è facoltativa;
-        puoi sempre digitare il nome tu stesso o sceglierlo dall’elenco delle reti trovate
-        dal dispositivo.
-        <br/><br/>
-        <b>Password:</b> il nome e la password della tua rete Wi-Fi vengono scritti solo sul
-        tuo WaveshareMon, attraverso il collegamento Bluetooth tra questo telefono e il
-        dispositivo. Non vengono mai caricati, trasmessi su internet, registrati nel log o
-        memorizzati da questa app.
-        <br/><br/>
-        <b>Prova Nightscout:</b> questo pulsante contatta l’indirizzo Nightscout che hai
-        inserito, da questo telefono, per verificare che risponda con una lettura prima che
-        ci provi il dispositivo. Non viene inviato nient’altro da nessuna parte.
-    ]]></string>
 </resources>

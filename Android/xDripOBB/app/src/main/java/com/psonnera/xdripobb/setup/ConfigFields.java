@@ -42,7 +42,8 @@ public final class ConfigFields {
         }
     }
 
-    // types: 'c' choice, 's' string, 'p' password, 'i' int, 'b' bool, 'g' glucose threshold (mg/dl on the wire)
+    // types: 'c' choice, 's' string, 'p' password, 'i' int, 'b' bool (checkbox), 'w' bool (switch),
+    // 'g' glucose threshold (mg/dl on the wire)
     public static final Field[] FIELDS = {
             new Field(PAGE_SOURCE, "src", R.string.field_src, 'c', 0, SOURCE_LABELS),
             new Field(PAGE_SOURCE, "ssid", R.string.field_ssid, 's', 32),
@@ -63,9 +64,10 @@ public final class ConfigFields {
             new Field(PAGE_DISPLAY, "yhi", R.string.field_yhi, 'g', 0),
             new Field(PAGE_DISPLAY, "rlo", R.string.field_rlo, 'g', 0),
             new Field(PAGE_DISPLAY, "rhi", R.string.field_rhi, 'g', 0),
-            new Field(PAGE_DISPLAY, "t24", R.string.field_t24, 'b', 0),
-            new Field(PAGE_DISPLAY, "dmy", R.string.field_dmy, 'b', 0),
-            new Field(PAGE_ALARMS, "aen", R.string.field_aen, 'b', 0),
+            new Field(PAGE_DISPLAY, "t24", R.string.field_t24, 'c', 0, R.string.clock_12, R.string.clock_24),     // wire: 0 = 12 h, 1 = 24 h
+            new Field(PAGE_DISPLAY, "dmy", R.string.field_dmy, 'c', 0, R.string.date_mdy, R.string.date_dmy),     // wire: 1 = day/month
+            new Field(PAGE_ALARMS, "aen", R.string.field_aen, 'w', 0),
+            new Field(PAGE_ALARMS, "arem", R.string.field_arem, 'b', 0),
             new Field(PAGE_ALARMS, "wlo", R.string.field_wlo, 'g', 0),
             new Field(PAGE_ALARMS, "alo", R.string.field_alo, 'g', 0),
             new Field(PAGE_ALARMS, "whi", R.string.field_whi, 'g', 0),
@@ -75,9 +77,41 @@ public final class ConfigFields {
             new Field(PAGE_ALARMS, "avol", R.string.field_avol, 'i', 0),
             new Field(PAGE_ALARMS, "arep", R.string.field_arep, 'i', 0),
             new Field(PAGE_ALARMS, "snoz", R.string.field_snoz, 'i', 0),
+            new Field(PAGE_ALARMS, "snzh", R.string.field_snzh, 'i', 0),
             new Field(PAGE_DEVICE, "name", R.string.field_name, 's', 24),
             new Field(PAGE_DEVICE, "tz", R.string.field_tz, 's', 48),
     };
+
+    public static Field field(String key) {
+        for (Field f : FIELDS) if (f.key.equals(key)) return f;
+        return null;
+    }
+
+    /** threshold pairs shown as a 2 x 2 table: first row, then second row */
+    private static final String[][] GRIDS = {{"ylo", "yhi", "rlo", "rhi"}, {"wlo", "whi", "alo", "ahi"}};
+    public static String[] gridFor(String key) {
+        for (String[] g : GRIDS) for (String k : g) if (k.equals(key)) return g;
+        return null;
+    }
+
+    /** firmware defaults of the thresholds, mg/dl; shown as placeholders in the current unit */
+    public static final java.util.Map<String, Integer> DEFAULT_MGDL = new java.util.HashMap<>();
+    static {
+        DEFAULT_MGDL.put("ylo", 70);  DEFAULT_MGDL.put("yhi", 180); DEFAULT_MGDL.put("rlo", 54);  DEFAULT_MGDL.put("rhi", 250);
+        DEFAULT_MGDL.put("wlo", 70);  DEFAULT_MGDL.put("whi", 180); DEFAULT_MGDL.put("alo", 55);  DEFAULT_MGDL.put("ahi", 250);
+    }
+
+    /** firmware defaults of the plain numbers, shown as placeholders */
+    public static final java.util.Map<String, Integer> DEFAULT_INT = new java.util.HashMap<>();
+    static {
+        DEFAULT_INT.put("nor", 20); DEFAULT_INT.put("wvol", 50); DEFAULT_INT.put("avol", 100);
+        DEFAULT_INT.put("arep", 5); DEFAULT_INT.put("snoz", 30); DEFAULT_INT.put("snzh", 120);
+    }
+
+    /** fields hidden while a switch or checkbox is on: xDrip's alerts replace the device thresholds */
+    public static String[] hiddenWhenOn(String key) {
+        return "arem".equals(key) ? new String[]{"wlo", "whi", "alo", "ahi"} : null;
+    }
 
     /** which source-page fields apply to which source; the others are hidden */
     public static boolean fieldForSource(String key, int src) {
@@ -86,7 +120,7 @@ public final class ConfigFields {
             case "url": case "token": return src == SRC_NIGHTSCOUT;
             case "dxuser": case "dxpass": case "dxreg": return src == SRC_DEXCOM;
             case "lluser": case "llpass": case "llreg": case "llver": return src == SRC_LIBRE;
-            case "sline": return src == SRC_OBB;
+            case "sline": case "arem": return src == SRC_OBB;
             default: return true;
         }
     }

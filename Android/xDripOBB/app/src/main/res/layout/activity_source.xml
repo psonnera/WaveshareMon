@@ -95,49 +95,12 @@
                         android:text="@string/pairing_closed" />
                 </LinearLayout>
                 <TextView
+                    android:id="@+id/tvPairingHint"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/readings_from"
-                    android:textStyle="bold" />
-                <CheckBox
-                    android:id="@+id/cbXdripApi"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/in_xdrip_api" />
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="32dp"
-                    android:text="@string/in_xdrip_api_hint"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/pairing_hint"
                     android:textSize="12sp" />
-                <CheckBox
-                    android:id="@+id/cbAaps"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/in_aaps" />
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="32dp"
-                    android:text="@string/in_aaps_hint"
-                    android:textSize="12sp" />
-                <CheckBox
-                    android:id="@+id/cbXdripLegacy"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/in_xdrip_legacy" />
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/swAlarms"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/fwd_alarms" />
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/swStatusLine"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/fwd_status_line" />
                 <Button
                     android:id="@+id/btnBridgeDetails"
                     android:layout_width="wrap_content"
@@ -160,5 +123,12 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:textSize="12sp" />
+        <Button
+            android:id="@+id/btnReconnect"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:visibility="gone"
+            style="@style/Widget.Material3.Button.TonalButton" />
     </LinearLayout>
 </ScrollView>

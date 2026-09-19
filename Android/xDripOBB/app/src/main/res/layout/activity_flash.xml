@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -9,31 +10,80 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/flash_intro" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
         android:text="@string/flash_panel_label"
         android:textStyle="bold" />
 
-    <RadioGroup
-        android:id="@+id/panelGroup"
+    <!-- which board: two picture tiles, the chosen one gets a thick primary border -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        <RadioButton
-            android:id="@+id/rbColor"
-            android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp">
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardBw"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="@string/flash_panel_color" />
-        <RadioButton
-            android:id="@+id/rbBw"
-            android:layout_width="match_parent"
+            android:layout_weight="1"
+            android:layout_margin="4dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:checkable="true"
+            app:cardCornerRadius="10dp"
+            app:checkedIconTint="?attr/colorPrimary"
+            app:strokeWidth="1dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:padding="8dp">
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="130dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/board_bw"
+                    android:contentDescription="@string/flash_panel_bw_short" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/flash_panel_bw_short"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardColor"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="@string/flash_panel_bw" />
-    </RadioGroup>
+            android:layout_weight="1"
+            android:layout_margin="4dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:checkable="true"
+            app:cardCornerRadius="10dp"
+            app:checkedIconTint="?attr/colorPrimary"
+            app:strokeWidth="1dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:padding="8dp">
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="130dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/board_color"
+                    android:contentDescription="@string/flash_panel_color_short" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/flash_panel_color_short"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
 
     <CheckBox
         android:id="@+id/cbErase"
@@ -63,6 +113,15 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:text="@string/flash_install" />
+
+    <!-- green when the connected device has a newer build in the repository (see FlashActivity) -->
+    <Button
+        android:id="@+id/btnUpdateDevice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/btn_update_device"
+        style="@style/Widget.Material3.Button.TonalButton" />
 
     <TextView
         android:id="@+id/tvDone"

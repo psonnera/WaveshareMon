@@ -15,7 +15,6 @@
     <string name="title_alarms">Alarms</string>
     <string name="title_device">Device settings</string>
     <string name="title_bridge">Bluetooth bridge</string>
-    <string name="section_device">Device</string>
     <string name="section_commands">Commands</string>
     <string name="section_device_info">Device info</string>
     <string name="section_log">Log</string>
@@ -30,29 +29,32 @@
     <string name="home_on_usb">, on USB</string>
     <string name="home_woke">\nWoke by %1$s, up %2$d s</string>
     <string name="home_status_page">\nThe device shows its status page until the first reading.</string>
-    <string name="home_connect_to_read">Connect to read.</string>
-    <string name="home_connect_source">Connect to read the current source.</string>
-    <string name="home_reading">Reading…</string>
-    <string name="home_device_reading">\nDevice: %1$d mg/dl, %2$d min ago</string>
-    <string name="home_bridge_on">\nBridge on</string>
-    <string name="home_bridge_off">\nBridge off</string>
-    <string name="home_bridge_reading">: %1$.0f mg/dl %2$s, %3$d min ago (%4$s)</string>
-    <string name="home_display_summary">%1$s, yellow %2$s-%3$s, red %4$s-%5$s, %6$s clock</string>
-    <string name="clock_24">24 h</string>
-    <string name="clock_12">12 h</string>
-    <string name="home_alarms_off">Off</string>
-    <string name="home_alarms_summary">On: warning %1$s-%2$s, alarm %3$s-%4$s, no readings %5$d min, snooze %6$d min</string>
-    <string name="home_default_name">Default name</string>
-    <string name="home_settings_summary">%1$s, time zone %2$s</string>
-    <string name="btn_connection">Connection</string>
-    <string name="btn_flash">Install firmware (USB)</string>
+    <string name="home_bg_none" translatable="false">--</string>
+    <string name="home_no_reading">No reading yet</string>
+    <string name="home_bridge_off">Bridge off</string>
+    <string name="home_bridge_off_hint">Bridge off: turn it on under SOURCE.</string>
+    <string name="home_no_device_connected">No display connected</string>
+    <string name="home_connected_devices">Sending readings to %1$s</string>
+    <string name="home_unit_age">%1$s, %2$d min ago</string>
+    <string name="home_delta_age">%1$s %2$s, %3$d min ago</string>
+    <string name="btn_home_program">PROGRAM</string>
+    <string name="btn_home_connect">CONNECT</string>
+    <string name="btn_home_source">SOURCE</string>
+    <string name="btn_home_display">DISPLAY</string>
+    <string name="btn_home_alarms">ALARMS</string>
+    <string name="btn_home_settings">SETTINGS</string>
+    <string name="clock_24">24-hour</string>
+    <string name="clock_12">12-hour</string>
+    <string name="date_dmy">Day/Month</string>
+    <string name="date_mdy">Month/Day</string>
     <string name="title_flash">Install firmware</string>
-    <string name="flash_intro">Installs the firmware from the GitHub repository onto a board plugged into this phone with a USB-OTG cable (first programming, or a device that cannot update itself). The phone identifies the chip; you only choose the panel. Do not unplug while it runs.</string>
-    <string name="flash_panel_label">Panel of the board</string>
-    <string name="flash_panel_color">Four-colour (ESP32-S3-ePaper-1.54G)</string>
-    <string name="flash_panel_bw">Black and white (ESP32-S3-ePaper-1.54 or ESP32-C6-ePaper-1.54)</string>
-    <string name="flash_erase">Erase settings and pairing (first install)</string>
-    <string name="flash_install">Install</string>
+    <string name="flash_panel_label">Program a new device (select)</string>
+    <string name="flash_panel_color_short">S3 Color</string>
+    <string name="flash_panel_bw_short">S3/C6 B&amp;W</string>
+    <string name="flash_erase">Erase all (settings and pairing)</string>
+    <string name="flash_install">NEW DEVICE INSTALL</string>
+    <string name="btn_update_device">UPDATE DEVICE</string>
+    <string name="update_none">No update available (build %1$d is the latest)</string>
     <string name="flash_plug_in">Plug the board into the phone with a USB-OTG cable.</string>
     <string name="flash_device_found">Board found on USB. Choose the panel and press Install.</string>
     <string name="flash_permission_denied">USB access was refused. Press Install again and allow it.</string>
@@ -67,20 +69,31 @@
     <string name="flash_after">The board starts in setup mode: go to Connection, scan and connect to configure it.</string>
     <string name="flash_log_images">images: %1$s build %2$s for %3$s</string>
     <string name="flash_log_rom_fallback">Flasher stub refused (%1$s): using the slower ROM flasher</string>
-    <string name="btn_source">Data source and connection</string>
-    <string name="btn_display">Display settings</string>
-    <string name="btn_alarms">Alarm settings</string>
-    <string name="btn_device">Name, time zone, commands, log</string>
     <string name="src_suffix_wifi"> (Wi-Fi)</string>
     <string name="src_suffix_bt"> (Bluetooth)</string>
 
     <!-- ===== connection page ===== -->
-    <string name="conn_intro">The device advertises for 10 minutes after it starts, permanently while unconfigured, or after holding its BOOT button for 3 seconds. Tap the device once it appears, then accept the phone\'s pairing prompt (Android may show two).</string>
+    <string name="conn_intro">Hold the BOOT ☀ button for 5 seconds to make the device visible.\nSelect the device then accept pairing (Might be needed twice).</string>
     <string name="btn_scan">Scan</string>
     <string name="btn_disconnect">Disconnect</string>
-    <string name="btn_refresh">Refresh</string>
+    <string name="conn_none_yet">No device connected yet</string>
+    <string name="conn_not_connected_last">Not connected. Last device: %1$s</string>
+    <string name="conn_role_setup">Setup link</string>
+    <string name="conn_role_bridge">Receiving the readings from this phone</string>
+    <string name="conn_also_bridge">\nAlso receiving the readings from this phone</string>
+    <string name="conn_paired">\nPaired with this phone</string>
+    <string name="conn_not_paired">\nNot paired with this phone: see Pairing mode under SOURCE</string>
+    <string name="conn_firmware">firmware %1$s</string>
     <string name="state_not_connected">not connected</string>
-    <string name="conn_info">%1$s  firmware %2$s</string>
+    <string name="state_scanning_attempt">scanning, attempt %1$d of %2$d, %3$d s left</string>
+    <string name="state_scan_none">no device found in %1$d attempts</string>
+    <string name="state_scan_done">scan finished: select the device</string>
+    <string name="btn_reconnect">Reconnect to %1$s</string>
+    <string name="state_reconnecting">Reconnecting to the device…</string>
+    <string name="state_reconnecting_suffix">(reconnecting)</string>
+    <string name="state_reconnect_failed">Device not found. It is visible for 10 minutes after it starts, while it is not configured, or after its BOOT button is held: hold BOOT and try again.</string>
+    <string name="log_reconnect">reconnect: looking for %1$s</string>
+    <string name="conn_scan_hint">The device is visible for 10 minutes after it starts, and as long as it is not configured yet. It is not visible on its 5-minute wake-ups.</string>
     <string name="conn_battery">  battery %1$d %%</string>
     <string name="conn_on_usb">  on USB</string>
     <string name="conn_address">\nBluetooth address %1$s</string>
@@ -91,8 +104,9 @@
     <!-- ===== settings pages (shared) ===== -->
     <string name="btn_save">Save to device</string>
     <string name="page_not_connected">Not connected: values cannot be read or saved.</string>
+    <string name="page_connecting">Connecting, reading the device…</string>
     <string name="nothing_changed">nothing changed</string>
-    <string name="hint_display">Units, the yellow and red bands of the value and the graph lines, and the clock format. Thresholds are converted when the unit changes.</string>
+    <string name="hint_display">Units, the ranges shown on the screen, clock and date format.</string>
     <string name="hint_alarms">The device sounds a warning or an alarm when a reading crosses these values, or when no reading arrived for a while. A short press of BOOT snoozes; the sounds repeat until the value is back in range.</string>
     <string name="label_with_unit">%1$s (%2$s)</string>
     <string name="hint_secret_stored">%1$s (stored, leave empty to keep)</string>
@@ -101,12 +115,12 @@
     <string name="unit_mmol" translatable="false">mmol/l</string>
 
     <!-- ===== data sources ===== -->
-    <string name="src_label_obb">xDrip / AAPS through this phone (Bluetooth)</string>
+    <string name="src_label_obb">xDrip/AAPS (WaveShareMon)</string>
     <string name="src_label_nightscout">Nightscout (Wi-Fi)</string>
-    <string name="src_label_miband">xDrip Mi Band (Bluetooth, no app needed)</string>
+    <string name="src_label_miband">Mi Band Emulation (xDrip)</string>
     <string name="src_label_dexcom">Dexcom Share (Wi-Fi)</string>
     <string name="src_label_libre">LibreLinkUp (Wi-Fi)</string>
-    <string name="src_label_x4i">xDrip4iOS (Bluetooth, no app needed)</string>
+    <string name="src_label_x4i">xDrip4iOS</string>
     <string name="src_short_obb">xDrip / AAPS via phone</string>
     <string name="src_short_nightscout" translatable="false">Nightscout</string>
     <string name="src_short_miband" translatable="false">xDrip Mi Band</string>
@@ -142,13 +156,14 @@
     <string name="field_tlsv">Verify TLS certificates</string>
     <string name="field_sline">Show the IOB/COB status line from the phone</string>
     <string name="field_units">Display units</string>
-    <string name="field_ylo">Yellow below</string>
-    <string name="field_yhi">Yellow above</string>
-    <string name="field_rlo">Red below</string>
-    <string name="field_rhi">Red above</string>
-    <string name="field_t24">24-hour clock</string>
-    <string name="field_dmy">Date as day.month</string>
+    <string name="field_ylo">Low</string>
+    <string name="field_yhi">High</string>
+    <string name="field_rlo">Very low</string>
+    <string name="field_rhi">Very high</string>
+    <string name="field_t24">Clock</string>
+    <string name="field_dmy">Date</string>
     <string name="field_aen">Alarms enabled</string>
+    <string name="field_arem">Use xDrip\'s alerts, forwarded by this phone, instead of the thresholds below</string>
     <string name="field_wlo">Warning low</string>
     <string name="field_alo">Alarm low</string>
     <string name="field_whi">Warning high</string>
@@ -157,8 +172,10 @@
     <string name="field_wvol">Warning volume (0-100)</string>
     <string name="field_avol">Alarm volume (0-100)</string>
     <string name="field_arep">Alarm repeat (min)</string>
-    <string name="field_snoz">Snooze (min)</string>
+    <string name="field_snoz">Snooze low (min)</string>
+    <string name="field_snzh">Snooze high (min)</string>
     <string name="field_name">Device name</string>
+    <string name="hint_name_auto">%1$s (automatic name, leave empty to keep it)</string>
     <string name="field_tz">POSIX time zone</string>
 
     <!-- ===== device commands ===== -->
@@ -195,7 +212,6 @@
     <string name="log_update_uptodate">firmware: up to date (repository build %1$d)</string>
     <string name="log_update_unknown_build">firmware: the device reports no build number (hand-built firmware); repository build %1$d. Update firmware on the Device page installs it anyway.</string>
     <string name="log_update_check_failed">firmware check failed: %1$s</string>
-    <string name="btn_check_update">Check for update</string>
     <string name="btn_checking_update">Checking…</string>
     <string name="home_update_uptodate">\nFirmware up to date (build %1$d)</string>
     <string name="device_reading">reading…</string>
@@ -213,17 +229,9 @@
     <string name="bridge_latest">\nlatest %1$.0f mg/dl %2$s, %3$d min ago (%4$s)</string>
     <string name="bridge_no_reading">\nno reading received yet</string>
     <string name="btn_pairing">Pairing mode (60 s)</string>
+    <string name="pairing_hint">The device pairs only while in setup mode: hold its BOOT button or restart it, make sure no setup link is open (CONNECT › Disconnect), then start Pairing mode and accept the phone\'s prompts.</string>
     <string name="pairing_open">open, %1$d s left</string>
     <string name="pairing_closed">closed</string>
-    <string name="readings_from">Readings from</string>
-    <string name="in_xdrip_api">xDrip+ Broadcast Service API</string>
-    <string name="in_xdrip_api_hint">xDrip: Settings › Inter-app settings › Broadcast Service API</string>
-    <string name="in_aaps">AndroidAPS status broadcast</string>
-    <string name="in_aaps_hint">AAPS: Config Builder › Synchronization › Samsung Tizen</string>
-    <string name="in_xdrip_legacy">xDrip+ Compatible Broadcast (older API)</string>
-    <string name="in_xdrip_legacy_hint">xDrip: Settings › Inter-app settings › Broadcast locally (add com.psonnera.xdripobb if Identify receiver is set)</string>
-    <string name="fwd_alarms">Forward xDrip alerts to the device</string>
-    <string name="fwd_status_line">Forward the IOB / COB status line</string>
     <string name="btn_bridge_details">Bridge details and log</string>
     <string name="wifi_net_item">%1$s   %2$d dBm, ch %3$d%4$s</string>
     <string name="wifi_net_open">, open</string>
@@ -244,7 +252,9 @@
     <string name="latest_none">latest: none yet</string>
     <string name="latest_line">latest: %1$s (%2$d min ago, %3$s)</string>
     <string name="bonded_devices">Bonded devices</string>
-    <string name="bonded_none">none</string>
+    <string name="bonded_none_yet">the display is not bonded yet: open the pairing window and let it connect</string>
+    <string name="bonded_no_device">no display configured: connect to it from the home page first</string>
+    <string name="bonded_this_display">  (this display)</string>
     <string name="bonded_connected_suffix">  [connected]</string>
     <string name="btn_forget">Forget</string>
     <string name="btn_ask_xdrip">Ask xDrip now</string>
@@ -300,7 +310,7 @@
     <string name="log_write_failed">%1$s FAILED</string>
 
     <!-- ===== Wi-Fi helpers on the data source page ===== -->
-    <string name="wifi_use_phone_network">Phone\'s network</string>
+    <string name="wifi_use_phone_network">Use phone Wi-Fi</string>
     <string name="wifi_scan_from_device">Device scan</string>
     <string name="wifi_autofill_none">This phone is not on a Wi-Fi network right now.</string>
     <string name="wifi_scan_title">Networks the device can see (2.4 GHz)</string>
@@ -309,7 +319,6 @@
     <string name="wifi_scan_unavailable">Connect to the device first (firmware 1.1.0 or newer).</string>
     <string name="wifi_password_error">Password must be empty (open network) or 8–63 characters</string>
     <string name="wifi_ssid_error">Enter the network name</string>
-    <string name="wifi_privacy_link">Why do we ask for this?</string>
     <string name="ns_test">Test Nightscout</string>
     <string name="ns_url_error">Enter the site address, e.g. https://mysite.example.com</string>
 
@@ -335,22 +344,4 @@
     <string name="ssid_disclosure_decline">No thanks</string>
     <string name="wifi_autofill_button">Auto-fill network name</string>
     <string name="wifi_autofill_settings_toast">Location permission is turned off for this app. To use auto-fill, allow Location in the settings screen that just opened.</string>
-    <string name="wifi_privacy_title">About your Wi-Fi details</string>
-    <string name="wifi_privacy_body"><![CDATA[
-        <b>Network name (SSID):</b> to save you typing, this app can read the name of
-        the Wi-Fi network your phone is connected to. Android treats that name as
-        location data, so reading it needs the location permission. This app uses
-        location access only for this — it never reads your GPS position and never
-        tracks you. Auto-fill is optional; you can always type the name yourself or pick
-        it from the list the device scans.
-        <br/><br/>
-        <b>Password:</b> your Wi-Fi network name and password are written only to your
-        WaveshareMon, over the Bluetooth link between this phone and the device. They are
-        never uploaded, transmitted over the internet, logged, or stored anywhere by this
-        app.
-        <br/><br/>
-        <b>Test Nightscout:</b> this button contacts the Nightscout address you entered,
-        from this phone, to check that it answers with a reading before the device tries.
-        Nothing else is sent anywhere.
-    ]]></string>
 </resources>

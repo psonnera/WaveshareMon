@@ -81,11 +81,6 @@ public class BridgeActivity extends AppCompatActivity implements OpenBroadcastSe
 
         updatingUi = true;
         b.swServer.setChecked(prefs.serverEnabled());
-        b.cbXdripApi.setChecked(prefs.xdripApiEnabled());
-        b.cbXdripLegacy.setChecked(prefs.xdripLegacyEnabled());
-        b.cbAaps.setChecked(prefs.aapsEnabled());
-        b.swAlarms.setChecked(prefs.broadcastAlarms());
-        b.swStatusLine.setChecked(prefs.statusLineEnabled());
         updatingUi = false;
 
         b.swServer.setOnCheckedChangeListener((v, on) -> {
@@ -96,22 +91,9 @@ public class BridgeActivity extends AppCompatActivity implements OpenBroadcastSe
             if (service != null) service.enableServer(on);
         });
         b.btnPairing.setOnClickListener(v -> { if (service != null) service.startPairingWindow(); });
-        b.cbXdripApi.setOnCheckedChangeListener((v, on) -> { if (!updatingUi) { prefs.setXdripApiEnabled(on); if (on && service != null) service.requestNow(); } });
-        b.cbXdripLegacy.setOnCheckedChangeListener((v, on) -> { if (!updatingUi) prefs.setXdripLegacyEnabled(on); });
-        b.cbAaps.setOnCheckedChangeListener((v, on) -> { if (!updatingUi) prefs.setAapsEnabled(on); });
         b.btnRequest.setOnClickListener(v -> {
             startService();
             if (service != null) { service.requestNow(); Toast.makeText(this, R.string.bridge_asked, Toast.LENGTH_SHORT).show(); }
-        });
-        b.swAlarms.setOnCheckedChangeListener((v, on) -> {
-            if (updatingUi) return;
-            prefs.setBroadcastAlarms(on);
-            if (service != null) service.setBroadcastAlarms(on);
-        });
-        b.swStatusLine.setOnCheckedChangeListener((v, on) -> {
-            if (updatingUi) return;
-            prefs.setStatusLineEnabled(on);
-            if (service != null) service.setStatusLine(on ? service.getStatusLine() : "", on);
         });
 
         if (prefs.serverEnabled() && ensurePermissions()) startService();
@@ -166,16 +148,21 @@ public class BridgeActivity extends AppCompatActivity implements OpenBroadcastSe
 
     private void renderBonded() {
         LinearLayout list = b.bondedList;
-        List<BluetoothDevice> bonded = service.getBondedDevices();
+        // only the display the setup pages connected to (and its Mi Band-mode alias):
+        // the phone's bond table also holds headphones, watches, car kits...
+        List<BluetoothDevice> bonded = new ArrayList<>();
+        for (BluetoothDevice d : service.getBondedDevices())
+            if (service.isOurDevice(d.getAddress())) bonded.add(d);
         List<BluetoothDevice> connected = service.getConnectedDevices();
+        boolean configured = prefs.deviceAddress() != null && prefs.deviceAddress().length() >= 17;
         // rebuild only when the set changed
-        String key = bonded.toString() + connected.toString();
+        String key = bonded.toString() + connected.toString() + configured;
         if (key.equals(list.getTag())) return;
         list.setTag(key);
         list.removeAllViews();
         if (bonded.isEmpty()) {
             TextView tv = new TextView(this);
-            tv.setText(R.string.bonded_none);
+            tv.setText(configured ? R.string.bonded_none_yet : R.string.bonded_no_device);
             list.addView(tv);
         }
         for (BluetoothDevice d : bonded) {
@@ -185,9 +172,10 @@ public class BridgeActivity extends AppCompatActivity implements OpenBroadcastSe
             TextView tv = new TextView(this);
             String name = null;
             try { name = d.getName(); } catch (SecurityException ignored) {}
-            tv.setText((name != null ? name : "?") + "  " + d.getAddress() + (connected.contains(d) ? getString(R.string.bonded_connected_suffix) : ""));
+            tv.setText((name != null ? name : "?") + "  " + d.getAddress() + getString(R.string.bonded_this_display)
+                    + (connected.contains(d) ? getString(R.string.bonded_connected_suffix) : ""));
             tv.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-            Button forget = new Button(this, null, com.google.android.material.R.attr.borderlessButtonStyle);
+            com.google.android.material.button.MaterialButton forget = new com.google.android.material.button.MaterialButton(this, null, com.google.android.material.R.attr.borderlessButtonStyle);
             forget.setText(R.string.btn_forget);
             forget.setOnClickListener(v -> { service.forgetDevice(d); list.setTag(null); });
             row.addView(tv);

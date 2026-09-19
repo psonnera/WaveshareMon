@@ -3,4 +3,25 @@
         <item name="colorPrimary">#0B7A3E</item>
         <item name="colorOnPrimary">#FFFFFF</item>
     </style>
+
+    <!-- home page grid button: icon above an upper-case label, as tall as wide -->
+    <style name="HomeSquare" parent="Widget.Material3.Button">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="iconGravity">textTop</item>
+        <item name="iconSize">40dp</item>
+        <item name="iconPadding">6dp</item>
+        <item name="cornerRadius">14dp</item>
+    </style>
 </resources>

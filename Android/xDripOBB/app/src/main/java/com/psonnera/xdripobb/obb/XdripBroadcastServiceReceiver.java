@@ -18,8 +18,7 @@ public class XdripBroadcastServiceReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent == null || !XdripApi.ACTION_FROM_XDRIP.equals(intent.getAction())) return;
-        ObbPrefs prefs = new ObbPrefs(context);
-        if (!prefs.xdripApiEnabled()) return;
+        ObbPrefs prefs = new ObbPrefs(context);      // last reading, for the alarm type guess
         Bundle b = intent.getExtras();
         String fn = b != null ? b.getString(XdripApi.KEY_FUNCTION, "") : "";
         Log.i("OBB", "xDrip API: " + fn);

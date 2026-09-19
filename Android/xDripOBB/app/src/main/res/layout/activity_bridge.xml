@@ -76,6 +76,13 @@
                         android:text="@string/pairing_closed" />
                 </LinearLayout>
                 <TextView
+                    android:id="@+id/tvPairingHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/pairing_hint"
+                    android:textSize="12sp" />
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
@@ -100,48 +107,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="12dp">
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/readings_from"
-                    android:textStyle="bold" />
-                <CheckBox
-                    android:id="@+id/cbXdripApi"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="@string/in_xdrip_api" />
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="32dp"
-                    android:text="@string/in_xdrip_api_hint"
-                    android:textSize="12sp" />
-                <CheckBox
-                    android:id="@+id/cbAaps"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="@string/in_aaps" />
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="32dp"
-                    android:text="@string/in_aaps_hint"
-                    android:textSize="12sp" />
-                <CheckBox
-                    android:id="@+id/cbXdripLegacy"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="@string/in_xdrip_legacy" />
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="32dp"
-                    android:text="@string/in_xdrip_legacy_hint"
-                    android:textSize="12sp" />
-                <Button
+                                                                                                                                <Button
                     android:id="@+id/btnRequest"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -162,19 +128,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="12dp">
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/swAlarms"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="@string/fwd_alarms" />
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/swStatusLine"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="@string/fwd_status_line" />
-            </LinearLayout>
+                                            </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <TextView

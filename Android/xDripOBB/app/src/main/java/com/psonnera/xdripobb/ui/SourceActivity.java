@@ -26,6 +26,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.psonnera.xdripobb.R;
 import com.psonnera.xdripobb.databinding.ActivitySourceBinding;
@@ -48,10 +49,12 @@ public class SourceActivity extends AppCompatActivity implements DeviceSession.L
     private ObbPrefs prefs;
     private OpenBroadcastService bridge;
     private SsidAutofill autofill;
-    private Button btnScanWifi, btnTestNs;
+    private MaterialButton btnScanWifi;
+    private MaterialButton btnTestNs;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private JSONObject filledFrom = null;
     private boolean updatingUi = false;
+    private boolean wasReady = false;
     private int shownScanSerial = 0;
     private boolean scanRequested = false;
 
@@ -85,11 +88,6 @@ public class SourceActivity extends AppCompatActivity implements DeviceSession.L
 
         updatingUi = true;
         b.swBridge.setChecked(prefs.serverEnabled());
-        b.cbXdripApi.setChecked(prefs.xdripApiEnabled());
-        b.cbAaps.setChecked(prefs.aapsEnabled());
-        b.cbXdripLegacy.setChecked(prefs.xdripLegacyEnabled());
-        b.swAlarms.setChecked(prefs.broadcastAlarms());
-        b.swStatusLine.setChecked(prefs.statusLineEnabled());
         updatingUi = false;
 
         b.swBridge.setOnCheckedChangeListener((v, on) -> {
@@ -99,48 +97,41 @@ public class SourceActivity extends AppCompatActivity implements DeviceSession.L
             if (bridge != null) bridge.enableServer(on);
         });
         b.btnPairing.setOnClickListener(v -> { startBridge(); if (bridge != null) bridge.startPairingWindow(); });
-        b.cbXdripApi.setOnCheckedChangeListener((v, on) -> { if (!updatingUi) { prefs.setXdripApiEnabled(on); if (on && bridge != null) bridge.requestNow(); } });
-        b.cbAaps.setOnCheckedChangeListener((v, on) -> { if (!updatingUi) prefs.setAapsEnabled(on); });
-        b.cbXdripLegacy.setOnCheckedChangeListener((v, on) -> { if (!updatingUi) prefs.setXdripLegacyEnabled(on); });
-        b.swAlarms.setOnCheckedChangeListener((v, on) -> { if (!updatingUi) { prefs.setBroadcastAlarms(on); if (bridge != null) bridge.setBroadcastAlarms(on); } });
-        b.swStatusLine.setOnCheckedChangeListener((v, on) -> {
-            if (updatingUi) return;
-            prefs.setStatusLineEnabled(on);
-            if (bridge != null) bridge.setStatusLine(on ? bridge.getStatusLine() : "", on);
-        });
         b.btnBridgeDetails.setOnClickListener(v -> startActivity(new Intent(this, BridgeActivity.class)));
+        b.btnReconnect.setOnClickListener(v -> Reconnect.start(this, session));
     }
 
-    /** the rows under the SSID and token fields; they show and hide with their field */
+    /** the small buttons under the SSID field and the test button under the token; they show and hide with their field */
     private void addWifiHelpers() {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        Button btnPhone = new Button(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        btnPhone.setText(R.string.wifi_use_phone_network);
-        btnPhone.setOnClickListener(v -> autofill.requested());
-        btnScanWifi = new Button(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        btnScanWifi.setText(R.string.wifi_scan_from_device);
+        MaterialButton btnPhone = smallButton(R.string.wifi_use_phone_network);
+        btnPhone.setOnClickListener(v -> autofill.requested());     // the disclosure dialog comes first when needed
+        btnScanWifi = smallButton(R.string.wifi_scan_from_device);
         btnScanWifi.setOnClickListener(v -> scanFromDevice());
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        row.addView(btnPhone, lp);
-        row.addView(btnScanWifi, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        box.addView(row);
-        TextView why = new TextView(this);
-        why.setText(R.string.wifi_privacy_link);
-        android.util.TypedValue tv = new android.util.TypedValue();
-        getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, tv, true);
-        why.setTextColor(tv.data);
-        why.setPadding(8, 4, 8, 8);
-        why.setOnClickListener(v -> autofill.showPrivacyDialog());
-        box.addView(why);
-        form.addExtra("ssid", box);
+        row.addView(btnPhone);
+        row.addView(btnScanWifi);
+        form.addExtra("ssid", row);
 
-        btnTestNs = new Button(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnTestNs = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
         btnTestNs.setText(R.string.ns_test);
         btnTestNs.setOnClickListener(v -> testNightscout());
         form.addExtra("token", btnTestNs);
+    }
+
+    /** a compact outlined button for the helper rows */
+    private MaterialButton smallButton(int text) {
+        MaterialButton btn = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btn.setText(text);
+        btn.setTextSize(12);
+        float dp = getResources().getDisplayMetrics().density;
+        btn.setMinHeight(0); btn.setMinimumHeight(0);
+        btn.setPadding(Math.round(12 * dp), 0, Math.round(12 * dp), 0);
+        btn.setInsetTop(0); btn.setInsetBottom(0);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, Math.round(32 * dp));
+        lp.rightMargin = Math.round(8 * dp);
+        btn.setLayoutParams(lp);
+        return btn;
     }
 
     @Override public boolean onSupportNavigateUp() { finish(); return true; }
@@ -194,7 +185,11 @@ public class SourceActivity extends AppCompatActivity implements DeviceSession.L
         }
         b.btnSave.setEnabled(session.isReady());
         if (btnScanWifi != null) btnScanWifi.setEnabled(session.supportsWifiScan());
-        if (!session.isConnected()) b.tvStatus.setText(R.string.source_not_connected);
+        if (!session.isConnected()) b.tvStatus.setText(Reconnect.statusText(this, session, R.string.source_not_connected));
+        else if (!session.isReady()) b.tvStatus.setText(R.string.page_connecting);
+        else if (!wasReady) b.tvStatus.setText("");
+        wasReady = session.isReady();
+        Reconnect.update(b.btnReconnect, session, prefs);
         if (session.wifiScanSerial() != shownScanSerial) {
             shownScanSerial = session.wifiScanSerial();
             if (scanRequested) { scanRequested = false; showScanResult(session.wifiScan()); }

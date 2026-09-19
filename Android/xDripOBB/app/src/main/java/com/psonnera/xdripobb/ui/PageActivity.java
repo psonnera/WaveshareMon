@@ -13,6 +13,7 @@ import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.psonnera.xdripobb.R;
+import com.psonnera.xdripobb.obb.ObbPrefs;
 
 import com.psonnera.xdripobb.databinding.ActivityPageBinding;
 import com.psonnera.xdripobb.setup.ConfigForm;
@@ -26,6 +27,7 @@ public abstract class PageActivity extends AppCompatActivity implements DeviceSe
     protected ConfigForm form;
     protected final Handler handler = new Handler(Looper.getMainLooper());
     private JSONObject filledFrom = null;
+    private boolean wasReady = false;
 
     protected abstract String page();
     @StringRes protected abstract int title();
@@ -42,6 +44,7 @@ public abstract class PageActivity extends AppCompatActivity implements DeviceSe
         b.tvHint.setText(hint());
         form = new ConfigForm(this, b.form, page());
         b.btnSave.setOnClickListener(v -> save());
+        b.btnReconnect.setOnClickListener(v -> Reconnect.start(this, session));
     }
 
     @Override public boolean onSupportNavigateUp() { finish(); return true; }
@@ -57,6 +60,7 @@ public abstract class PageActivity extends AppCompatActivity implements DeviceSe
     @Override
     protected void onStop() {
         super.onStop();
+        handler.removeCallbacks(tick);
         session.removeListener(this);
     }
 
@@ -69,9 +73,20 @@ public abstract class PageActivity extends AppCompatActivity implements DeviceSe
             filledFrom = cfg;
             form.fill(cfg);
         }
+        // SETTINGS: an empty name field means the automatic name is in use; say which one
+        JSONObject info = session.info();
+        if (info != null && !info.optString("name", "").isEmpty())
+            form.setHint("name", getString(R.string.hint_name_auto, info.optString("name")));
         b.btnSave.setEnabled(session.isReady());
-        if (!session.isConnected()) b.tvStatus.setText(R.string.page_not_connected);
+        if (!session.isConnected()) b.tvStatus.setText(Reconnect.statusText(this, session, R.string.page_not_connected));
+        else if (!session.isReady()) b.tvStatus.setText(R.string.page_connecting);
+        else if (!wasReady) b.tvStatus.setText("");      // the "not connected" text must not outlive the link
+        wasReady = session.isReady();
+        Reconnect.update(b.btnReconnect, session, new ObbPrefs(this));
+        if (session.isReconnecting()) { handler.removeCallbacks(tick); handler.postDelayed(tick, 1000); }
     }
+
+    private final Runnable tick = this::refresh;    // the countdown on the Reconnect button
 
     protected void save() {
         JSONObject changed = form.changed();

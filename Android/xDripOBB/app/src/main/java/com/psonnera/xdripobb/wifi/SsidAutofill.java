@@ -91,17 +91,6 @@ public final class SsidAutofill {
         }
     }
 
-    /** "Why do we ask for this?" */
-    public void showPrivacyDialog() {
-        AlertDialog d = new MaterialAlertDialogBuilder(activity)
-                .setTitle(R.string.wifi_privacy_title)
-                .setMessage(HtmlCompat.fromHtml(activity.getString(R.string.wifi_privacy_body), HtmlCompat.FROM_HTML_MODE_LEGACY))
-                .setPositiveButton(android.R.string.ok, null)
-                .setNeutralButton(R.string.wifi_autofill_button, (dlg, w) -> requested())
-                .show();
-        TextView tv = d.findViewById(android.R.id.message);
-        if (tv != null) tv.setMovementMethod(LinkMovementMethod.getInstance());
-    }
 
     /** The Play-mandated prominent disclosure. Dismissing it is neither consent nor a refusal. */
     private void showDisclosure() {

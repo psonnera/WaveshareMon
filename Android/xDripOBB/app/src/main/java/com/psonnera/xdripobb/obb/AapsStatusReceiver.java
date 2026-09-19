@@ -24,8 +24,6 @@ public class AapsStatusReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent == null || !ACTION.equals(intent.getAction())) return;
-        ObbPrefs prefs = new ObbPrefs(context);
-        if (!prefs.aapsEnabled()) return;
         Bundle b = intent.getExtras();
         if (b == null || !b.containsKey("glucoseMgdl")) return;
         double mgdl = b.getDouble("glucoseMgdl", Double.NaN);
