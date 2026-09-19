@@ -16,6 +16,7 @@ public:
   void tick();                    // decides when a refresh is due (awake loop only)
   void flush();                   // end of a wake window: render now if anything changed
   void powerDown();               // panel supply off before deep sleep
+  void drawPowerOff();            // full-screen "Power off" page, drawn before the off deep sleep
   void requestRedraw() { redrawPending = true; }
   bool busy() const { return rendering; }
   bool panelOk() const { return !panelMismatch; }   // false: the BUSY line says this is the other panel

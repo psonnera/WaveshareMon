@@ -79,11 +79,13 @@ pre{background:#222;color:#ddd;font-size:12px;padding:8px;border-radius:6px;max-
 
 <section><h2>Alarms</h2>
 <div class="chk"><input type="checkbox" id="aen"><label for="aen">Alarms on</label></div>
+<div id="g-arem" class="chk"><input type="checkbox" id="arem"><label for="arem">Use xDrip's alerts from the phone instead of the thresholds (xDrip / AAPS source)</label></div>
 <div class="row"><div><label>Warning below</label><input id="wlo" inputmode="decimal"></div><div><label>Alarm below</label><input id="alo" inputmode="decimal"></div></div>
 <div class="row"><div><label>Warning above</label><input id="whi" inputmode="decimal"></div><div><label>Alarm above</label><input id="ahi" inputmode="decimal"></div></div>
 <label>No readings warning after (minutes)</label><input id="nor" type="number" min="5" max="1440">
 <div class="row"><div><label>Warning volume (0-100)</label><input id="wvol" type="number" min="0" max="100"></div><div><label>Alarm volume (0-100)</label><input id="avol" type="number" min="0" max="100"></div></div>
-<div class="row"><div><label>Repeat every (minutes)</label><input id="arep" type="number" min="1" max="120"></div><div><label>Snooze (minutes)</label><input id="snoz" type="number" min="1" max="240"></div></div>
+<div class="row"><div><label>Repeat every (minutes)</label><input id="arep" type="number" min="1" max="120"></div><div><label>Snooze low (minutes)</label><input id="snoz" type="number" min="1" max="240"></div></div>
+<label>Snooze high (minutes)</label><input id="snzh" type="number" min="1" max="240">
 </section>
 
 <section><h2>Device</h2>
@@ -120,7 +122,7 @@ pre{background:#222;color:#ddd;font-size:12px;padding:8px;border-radius:6px;max-
 </main>
 <script>
 const $=id=>document.getElementById(id);
-const KEYS=['src','ssid','pass','url','token','dxuser','dxpass','dxreg','lluser','llpass','llreg','llver','tlsv','sline','units','ylo','yhi','rlo','rhi','t24','dmy','aen','wlo','alo','whi','ahi','nor','wvol','avol','arep','snoz','name','tz'];
+const KEYS=['src','ssid','pass','url','token','dxuser','dxpass','dxreg','lluser','llpass','llreg','llver','tlsv','sline','units','ylo','yhi','rlo','rhi','t24','dmy','aen','arem','wlo','alo','whi','ahi','nor','wvol','avol','arep','snoz','snzh','name','tz'];
 const G=['ylo','yhi','rlo','rhi','wlo','alo','whi','ahi'];
 const INTS=['src','dxreg','units','nor','wvol','avol','arep','snoz'];
 const SECRET={pass:'haspass',token:'hastoken',dxpass:'hasdxpass',llpass:'hasllpass'};
@@ -134,7 +136,7 @@ let cfg=null,curMm=false;
 const isWifi=s=>s==1||s==3||s==4;
 function showGroups(){const s=+$('src').value;
  $('g-wifi').classList.toggle('hide',!isWifi(s));$('g-ns').classList.toggle('hide',s!=1);$('g-dx').classList.toggle('hide',s!=3);
- $('g-ll').classList.toggle('hide',s!=4);$('g-tls').classList.toggle('hide',!isWifi(s));$('g-obb').classList.toggle('hide',s!=0);
+ $('g-ll').classList.toggle('hide',s!=4);$('g-tls').classList.toggle('hide',!isWifi(s));$('g-obb').classList.toggle('hide',s!=0);$('g-arem').classList.toggle('hide',s!=0);
  $('srchint').textContent=HINT[s]||'';}
 const g2ui=(mm,v)=>mm?(v/18).toFixed(1):String(v);
 const ui2g=(mm,v)=>mm?Math.round(parseFloat(v)*18):parseInt(v);

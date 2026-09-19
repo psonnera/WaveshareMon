@@ -11,6 +11,8 @@
 #include "TimeService.h"
 #include "Log.h"
 #include "BleBonds.h"
+#include "BleSetupServer.h"
+#include "PowerCycle.h"
 #include <NimBLEDevice.h>
 #include <esp_task_wdt.h>
 #include "nimble/nimble/host/include/host/ble_store.h"
@@ -193,6 +195,20 @@ static bool connectAndSubscribe() {
     logDebug("id %s/t%d key rc=%d ltk=%d", id.toString().c_str(), id.getType(), rc,
              rc == 0 ? v.ltk_present : -1);
   }
+  // No key for this phone means a pairing would follow, with two consent
+  // prompts the user has to accept inside the 30 s radio window of a normal
+  // wake. That never completes and puts a dialog on the phone every 5 minutes,
+  // so an unbonded link is only pursued in setup mode, where the device stays
+  // awake for 10 minutes (hold BOOT, or a restart) and the app's Pairing mode
+  // is the natural moment.
+  if (!hadKey && !setupServerAdvertising()) {
+    logAdd("not paired with this phone: hold BOOT, then Pairing mode in the app");
+    s_client->disconnect();
+    s_nextActionMs = millis() + PAIR_FAIL_MS;
+    return false;
+  }
+  if (!hadKey) cycleStayAwake(90000UL);   // the consent prompts must not be cut short by the window
+
   // Encrypted link is mandatory; first contact bonds (Just Works) while the
   // user has the pairing window open on the phone and accepts its dialog.
   //

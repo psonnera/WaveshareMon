@@ -122,7 +122,7 @@ static void pollButton() {
   wasDown = down;
 }
 
-// Power off: the e-paper keeps its image, so the screen does not change. Deep
+// Power off: the e-paper keeps its image, so a "Power off" page is drawn first. Deep
 // sleep drops the CPU to a few uA and releases the USB, so this is the "off"
 // state. Unlike the power-cycle sleep the battery latch is NOT held, so on
 // battery the board really powers down; a PWR press re-latches it and boots.
@@ -132,6 +132,7 @@ void powerOff() {
   Serial.println("[dbg] powering off - press PWR to wake");
   Serial.flush();
   delay(50);
+  ui.drawPowerOff();                        // the panel keeps this page while off
   ui.powerDown();
   audio.powerDown();
   boardPowerOff();                          // latch released, PWR (pulled low) wakes

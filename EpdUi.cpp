@@ -149,14 +149,6 @@ static void fillAlarm(int x, int y, int w, int h, int r) {
 }
 
 // a status icon in alert state
-static void drawIcon2xAlert(int16_t x, int16_t y, const unsigned char *bitmap) {
-#if BOARD_PANEL_COLOR
-  drawIcon2x(x, y, bitmap, GxEPD_RED);
-#else
-  display.fillRect(x, y, 32, 32, GxEPD_BLACK);
-  drawIcon2x(x, y, bitmap, GxEPD_WHITE);
-#endif
-}
 
 // graph threshold line: yellow / red, or dotted (warning) / dashed (alarm)
 static void thresholdLine(int x0, int y, int w, bool alarm) {
@@ -168,6 +160,16 @@ static void thresholdLine(int x0, int y, int w, bool alarm) {
 #endif
 }
 
+// header icons: red for an alert on the colour panel; the black-and-white panel keeps the
+// top line black on white, as the user asked: no inverted icon boxes there
+static void drawHeaderIcon(int16_t x, const unsigned char *bitmap, bool alert) {
+#if BOARD_PANEL_COLOR
+  drawIcon2x(x, 0, bitmap, alert ? GxEPD_RED : GxEPD_BLACK);
+#else
+  (void)alert;
+  drawIcon2x(x, 0, bitmap, GxEPD_BLACK);
+#endif
+}
 static void drawIcon2x(int16_t x, int16_t y, const unsigned char *bitmap, uint16_t color) {
   for (int row = 0; row < 16; row++)
     for (int col = 0; col < 16; col++)
@@ -243,30 +245,29 @@ void EpdUi::drawHeader() {
   }
 
   int x = W - 32;
-  if (battery.onUsb() && pct < 0) drawIcon2x(x, 0, plug_icon16x16, GxEPD_BLACK);
+  if (battery.onUsb() && pct < 0) drawHeaderIcon(x, plug_icon16x16, false);
   else if (pct >= 0) {
     const unsigned char *ic = pct <= 12 ? bat0_icon16x16 : pct <= 40 ? bat1_icon16x16 :
                               pct <= 65 ? bat2_icon16x16 : pct <= 90 ? bat3_icon16x16 : bat4_icon16x16;
     bool low = pct <= 12;
-    if (low) drawIcon2xAlert(x, 0, ic); else drawIcon2x(x, 0, ic, GxEPD_BLACK);
+    drawHeaderIcon(x, ic, low);
     if (pf) drawText(pt, x - 3, (HDR_H - ph) / 2, pf, 1, low ? COL_ALERT : GxEPD_BLACK, AL_RIGHT);
   }
   x = linkX;
   if (cfg.source == SRC_OBB) {
-    if (obbState() == OBB_CONNECTED) drawIcon2x(x, 0, bluetooth_icon16x16, GxEPD_BLACK);
-    else drawIcon2xAlert(x, 0, bluetooth_icon16x16);
+    drawHeaderIcon(x, bluetooth_icon16x16, obbState() != OBB_CONNECTED);
   } else if (cfg.source == SRC_MIBAND) {
     // in the power cycle the link is closed again before the screen refreshes:
     // black as long as xDrip has paired, red until the first key exchange
     bool ok = miBandIsAuthenticated() || (!cycleAwake() && cfg.mibandKeySet);
-    if (ok) drawIcon2x(x, 0, bluetooth_icon16x16, GxEPD_BLACK); else drawIcon2xAlert(x, 0, bluetooth_icon16x16);
+    drawHeaderIcon(x, bluetooth_icon16x16, !ok);
   } else if (cfg.source == SRC_XDRIP4IOS) {
     bool ok = xdrip4iosIsAuthenticated() || (!cycleAwake() && cfg.x4iPassword[0]);
-    if (ok) drawIcon2x(x, 0, bluetooth_icon16x16, GxEPD_BLACK); else drawIcon2xAlert(x, 0, bluetooth_icon16x16);
+    drawHeaderIcon(x, bluetooth_icon16x16, !ok);
   } else {
-    if (wifiConnected()) drawIcon2x(x, 0, wifi2_icon16x16, GxEPD_BLACK); else drawIcon2xAlert(x, 0, wifi2_icon16x16);
+    drawHeaderIcon(x, wifi2_icon16x16, !wifiConnected());
   }
-  if (snoozed) drawIcon2xAlert(x - 32, 0, clock_icon16x16);
+  if (snoozed) drawHeaderIcon(x - 32, clock_icon16x16, true);
 
   if (t[0]) drawText(t, 2, (HDR_H - th) / 2, tf, 1, GxEPD_BLACK);
 }
@@ -625,6 +626,27 @@ void EpdUi::begin(bool splash) {
   s_rtc.lastLive = 2;                     // neither page yet: the first tick redraws
   s_rtc.lastStatus[0] = 0;
   redrawPending = true;                   // first data screen after boot
+}
+
+// Power off: the e-paper keeps whatever it shows, so without this page the last
+// reading would stay on screen with nothing saying that the device is off.
+void EpdUi::drawPowerOff() {
+  rendering = true;
+  ensureInit();
+  display.setFullWindow();
+  display.setRotation(0);
+  display.firstPage();
+  do {
+    display.fillScreen(GxEPD_WHITE);
+    drawText("Power off", W / 2, 70, &FreeSansBold12pt7b, 1, GxEPD_BLACK, AL_CENTER);
+    drawText(cfg.name(), W / 2, 105, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+    drawText("press PWR to start", W / 2, 135, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+  } while (display.nextPage());
+  display.hibernate();
+  s_rtc.lastLive = 2;                     // the next wake redraws in full
+  s_rtc.lastAgeShown = -1;
+  redrawPending = true;
+  rendering = false;
 }
 
 void EpdUi::powerDown() {

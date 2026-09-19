@@ -43,6 +43,7 @@ void AppConfig::load() {
     redLow         = p.getUShort("rlo", redLow);
     redHigh        = p.getUShort("rhi", redHigh);
     alarmsEnabled  = p.getUChar("aen", alarmsEnabled);
+    alarmsRemoteOnly = p.getUChar("arem", alarmsRemoteOnly);
     warnLow        = p.getUShort("swlo", warnLow);
     alarmLow       = p.getUShort("salo", alarmLow);
     warnHigh       = p.getUShort("swhi", warnHigh);
@@ -52,6 +53,7 @@ void AppConfig::load() {
     alarmVolume    = p.getUChar("avol", alarmVolume);
     alarmRepeatMin = p.getUChar("arep", alarmRepeatMin);
     snoozeMin      = p.getUChar("snoz", snoozeMin);
+    snoozeHighMin  = p.getUChar("snzh", snoozeHighMin);
     timeFormat24   = p.getUChar("tfmt", timeFormat24);
     dateFormatDMY  = p.getUChar("dfmt", dateFormatDMY);
     debugLog       = p.getUChar("dbg", debugLog);
@@ -117,6 +119,7 @@ void AppConfig::save() {
   chk(p.putUShort("rlo", redLow));
   chk(p.putUShort("rhi", redHigh));
   chk(p.putUChar("aen", alarmsEnabled));
+  chk(p.putUChar("arem", alarmsRemoteOnly));
   chk(p.putUShort("swlo", warnLow));
   chk(p.putUShort("salo", alarmLow));
   chk(p.putUShort("swhi", warnHigh));
@@ -126,6 +129,7 @@ void AppConfig::save() {
   chk(p.putUChar("avol", alarmVolume));
   chk(p.putUChar("arep", alarmRepeatMin));
   chk(p.putUChar("snoz", snoozeMin));
+  chk(p.putUChar("snzh", snoozeHighMin));
   chk(p.putUChar("tfmt", timeFormat24));
   chk(p.putUChar("dfmt", dateFormatDMY));
   chk(p.putUChar("dbg", debugLog));

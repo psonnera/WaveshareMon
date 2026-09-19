@@ -37,19 +37,21 @@ struct AppConfig {
   // display thresholds (colours), canonical mg/dL
   uint16_t yellowLow       = 70;
   uint16_t yellowHigh      = 180;
-  uint16_t redLow          = 55;
+  uint16_t redLow          = 54;
   uint16_t redHigh         = 250;
   // sound thresholds, canonical mg/dL
   uint8_t  alarmsEnabled   = 1;
+  uint8_t  alarmsRemoteOnly = 0;  // OBB: the phone forwards xDrip's alerts, the thresholds are not evaluated
   uint16_t warnLow         = 70;
   uint16_t alarmLow        = 55;
   uint16_t warnHigh        = 180;
   uint16_t alarmHigh       = 250;
-  uint16_t noReadingsMin   = 15;   // warn when data older than this (value reads "---" from 12)
-  uint8_t  warnVolume      = 30;   // 0-100
-  uint8_t  alarmVolume     = 80;   // 0-100
+  uint16_t noReadingsMin   = 20;   // warn when data older than this (value reads "---" from 12)
+  uint8_t  warnVolume      = 50;   // 0-100
+  uint8_t  alarmVolume     = 100;   // 0-100
   uint8_t  alarmRepeatMin  = 5;
-  uint8_t  snoozeMin       = 30;
+  uint8_t  snoozeMin       = 30;   // low warnings and alarms
+  uint8_t  snoozeHighMin   = 120;  // high warnings and alarms resolve slowly
   // display
   uint8_t  timeFormat24    = 1;    // 1 = 24h, 0 = 12h am/pm
   uint8_t  dateFormatDMY   = 1;    // 1 = d.m., 0 = m/d

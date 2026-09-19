@@ -66,7 +66,10 @@ AlarmState Alarms::evaluate() const {
   // a remote alarm stays displayed for 30 min unless cleared by xDrip
   if (remoteType != 0 && difftime(nowUtc(), remoteUtc) < 30 * 60) return ALARM_REMOTE;
   if (!gs.hasData) return ALARM_NONE;
-  if (!gs.isStale()) {
+  // OBB with "use xDrip's alerts": the phone forwards them (ALARM_REMOTE above), the
+  // device's own thresholds stay quiet so the same event does not sound twice
+  bool remoteOnly = cfg.alarmsRemoteOnly && cfg.source == SRC_OBB;
+  if (!gs.isStale() && !remoteOnly) {
     // a value the screen no longer shows ("---") cannot raise a low / high;
     // only the no-readings warning applies then
     uint16_t v = gs.mgdl;
@@ -164,12 +167,16 @@ void Alarms::snooze() {
     snoozeMult = 1;
   }
   lastSnoozePressMs = now;
+  // a high resolves slowly: highs (local or forwarded by xDrip) get their own, longer snooze
+  bool high = current == ALARM_WARN_HIGH || current == ALARM_ALARM_HIGH ||
+              (current == ALARM_REMOTE && (remoteType == 3 || remoteType == 4));
+  uint8_t base = high ? cfg.snoozeHighMin : cfg.snoozeMin;
   if (snoozeMult == 0)
     snoozeUntilUtc = 0;
   else
-    snoozeUntilUtc = nowUtc() + (time_t)snoozeMult * cfg.snoozeMin * 60;
+    snoozeUntilUtc = nowUtc() + (time_t)snoozeMult * base * 60;
   audio.mute();
-  logAdd("snooze %d min", snoozeMult * cfg.snoozeMin);
+  logAdd("snooze %d min", snoozeMult * base);
   stateChanged = true;
 }
 
