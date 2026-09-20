@@ -2,6 +2,22 @@
 
 ## Unreleased — 1.1.0
 
+- App, setup link: when the discovered table lacks the setup service, the client drops Android's
+  cached table for the device (hidden `refresh()`) and discovers once more. Android keeps a
+  server table per bonded address in memory and serves it without going on the air; a table
+  taken from a link that answered nothing stayed empty until Bluetooth was cycled.
+- Fix: the OBB client read the status line from inside its notification callback, which runs
+  in the Bluetooth host task; the blocking read waited for an answer that task itself had to
+  process, and the host stopped for good. From then on the bridge link answered nothing, its
+  disconnect never completed on the device and the setup service was unreachable until a
+  reboot (the sleep cycle hid it: the device slept and restarted within seconds; setup mode and
+  the always-on mode did not). The read now happens from the main loop.
+- OBB, setup mode: the bridge link is released two seconds after the reading and taken again
+  two minutes later, instead of being held for the whole setup window. The app's setup client
+  needs a link of its own: Android attaches it to an existing link with the device, where the
+  device answers nothing, and gives up after 30 s (the reconnect from the app failed while the
+  bridge link was up). The sleep cycle already worked this way; the always-on mode keeps its
+  link outside setup mode.
 - App, PROGRAM page: a picture above the install button shows the USB state (plug the board,
   board found, writing); the board on USB is asked over its console which panel it drives
   (`status` answers `board=` and `panel=`), the matching tile is selected and a contradicting

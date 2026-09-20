@@ -70,6 +70,8 @@ static uint8_t        s_secureFails = 0;       // consecutive secureConnection()
 #define RETRY_MS         (5UL * 1000)
 #define PAIR_FAIL_MS     (30UL * 1000)
 #define SECURE_FAIL_LIMIT 4                    // drop a bond only after this many straight failures
+#define SETUP_RELINK_MS  (2UL * 60 * 1000)     // setup mode: the link is released after a reading, back in 2 min
+static uint32_t       s_readingAtMs = 0;       // millis() of the reading received on this link (0: none yet)
 
 static void setState(ObbState s) {
   if (s_state == s) return;
@@ -121,6 +123,7 @@ static void onGlucose(NimBLERemoteCharacteristic *, uint8_t *data, size_t len, b
   if (len < sizeof(obb_glucose_t)) return;
   obb_glucose_t r; memcpy(&r, data, sizeof(r));
   s_lastPacketMs = millis();
+  s_readingAtMs = s_lastPacketMs;
   if (r.glucose == 0xFFFF) return;
   time_t now = time(nullptr);
   time_t utc = 0;
@@ -139,12 +142,24 @@ static void onAlarm(NimBLERemoteCharacteristic *, uint8_t *data, size_t len, boo
   alarms.onRemoteAlarm(a.alarm_type, a.value == 0xFFFF ? 0 : (a.value + 5) / 10);
 }
 
-static void onStatusLine(NimBLERemoteCharacteristic *chr, uint8_t *data, size_t len, bool) {
-  // the notification only carries the beginning; do a (long) read for the full text
-  NimBLEAttValue v = chr->readValue();
-  std::string s = v.length() ? std::string(v.c_str(), v.length()) : std::string((const char *)data, len);
+static NimBLERemoteCharacteristic *s_statusChr = nullptr;   // valid while connected (the attribute cache)
+static volatile bool s_statusDirty = false;                  // a status-line notification waits for its full read
+
+static void setInfoLine(const char *data, size_t len) {
+  std::string s(data, len);
   for (auto &c : s) if (c == '\n' || c == '\r') c = ' ';
   gs.setInfoLine(s.c_str());
+}
+
+static void onStatusLine(NimBLERemoteCharacteristic *chr, uint8_t *data, size_t len, bool) {
+  // Host task: no GATT call here. A blocking read would wait for the answer that
+  // this very task has to process, and the host stops for good: the link then
+  // answers nothing, its disconnect never completes and the setup service is
+  // dead until a reboot (found 2026-09-20). The notification only carries the
+  // beginning of the text: show it now, the main loop reads the full text (obbTick).
+  setInfoLine((const char *)data, len);
+  s_statusChr = chr;
+  s_statusDirty = true;
 }
 
 // ---- connection sequence (main loop context) ----------------------------------
@@ -164,6 +179,9 @@ static void startScan() {
 
 static bool connectAndSubscribe() {
   setState(OBB_CONNECTING);
+  s_readingAtMs = 0;                      // the subscriptions below already deliver the first reading
+  s_statusDirty = false;
+  s_statusChr = nullptr;                  // connect() rebuilds the attribute cache
   logAdd("xDrip found %s/t%d", s_target.toString().c_str(), s_target.getType());
   if (!s_client) {
     s_client = NimBLEDevice::createClient();
@@ -394,11 +412,25 @@ void obbTick() {
     if (s_disconnected || !s_client->isConnected()) {
       s_disconnected = false;
       setState(OBB_IDLE);
-      s_nextActionMs = now + RETRY_MS;
+      if ((int32_t)(s_nextActionMs - now) < (int32_t)RETRY_MS) s_nextActionMs = now + RETRY_MS;
+    } else if (s_statusDirty && s_statusChr) {
+      s_statusDirty = false;
+      NimBLEAttValue v = s_statusChr->readValue();      // main loop: blocking is fine here
+      if (v.length()) setInfoLine(v.c_str(), v.length());
     } else if (now - s_lastPacketMs > SUPERVISION_MS) {
       logAdd("no OBB data for 16 min, reconnecting");
       s_client->disconnect();
       s_nextActionMs = now + RETRY_MS;
+    } else if (setupServerAdvertising() && s_readingAtMs && now - s_readingAtMs > 2000) {
+      // Setup mode: the link is released once the reading is in, and taken again
+      // two minutes later. The app's setup client needs a link of its own: Android
+      // attaches it to an existing one, where this device answers nothing, and
+      // gives up after 30 s. The sleep cycle already ends its window this way;
+      // the always-on mode keeps its link outside setup mode.
+      logAdd("setup mode: link released for 2 min");
+      s_readingAtMs = 0;
+      s_client->disconnect();
+      s_nextActionMs = now + SETUP_RELINK_MS;
     }
     return;
   }
