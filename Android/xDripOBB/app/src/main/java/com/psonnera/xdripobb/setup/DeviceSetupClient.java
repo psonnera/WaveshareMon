@@ -125,6 +125,7 @@ public class DeviceSetupClient {
         disconnect();
         lastDevice = d;
         failures = 0;
+        refreshed = false;
         listener.onConnectionState(ctx.getString(R.string.ble_connecting, d.getAddress()), false);
         try {
             gatt = d.connectGatt(ctx, false, gattCb, BluetoothDevice.TRANSPORT_LE);
@@ -144,6 +145,7 @@ public class DeviceSetupClient {
     private BluetoothDevice lastDevice;
     private boolean discovering = false;
     private int failures = 0;
+    private boolean refreshed = false;   // the GATT cache was dropped once on this connection
 
     private final BluetoothGattCallback gattCb = new BluetoothGattCallback() {
         @Override
@@ -173,6 +175,18 @@ public class DeviceSetupClient {
         @Override
         public void onServicesDiscovered(BluetoothGatt g, int status) {
             BluetoothGattService s = g.getService(SERVICE_UUID);
+            if (s == null && !refreshed) {
+                // Android keeps a server table per bonded address in memory and serves it
+                // without going on the air; a table taken from a link that answered nothing
+                // (a stuck device) stays empty until Bluetooth is cycled. The hidden refresh()
+                // drops it: discover once more from the device itself.
+                refreshed = true;
+                try { java.lang.reflect.Method m = g.getClass().getMethod("refresh"); m.invoke(g); } catch (Exception ignored) {}
+                discovering = true;
+                post(() -> listener.onConnectionState(ctx.getString(R.string.ble_discovering, 517), true));
+                handler.postDelayed(() -> { try { g.discoverServices(); } catch (SecurityException ignored) {} }, 800);
+                return;
+            }
             if (s == null) { post(() -> listener.onError(ctx.getString(R.string.ble_no_service))); return; }
             infoChar = s.getCharacteristic(INFO_UUID);
             configChar = s.getCharacteristic(CONFIG_UUID);
