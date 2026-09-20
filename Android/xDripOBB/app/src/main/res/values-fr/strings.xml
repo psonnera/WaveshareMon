@@ -52,6 +52,14 @@
     <string name="flash_erase">Effacer les réglages et l\'appairage (première installation)</string>
     <string name="flash_install">Installer</string>
     <string name="btn_update_device">METTRE À JOUR L’APPAREIL</string>
+    <string name="flash_link_none">Bluetooth : aucun appareil connecté.</string>
+    <string name="flash_link_connected">Bluetooth : %1$s, carte %2$s</string>
+    <string name="flash_board_unknown">carte inconnue</string>
+    <string name="flash_probing">Carte détectée sur l\'USB, demande du type d\'écran…</string>
+    <string name="flash_probed">Carte détectée sur l\'USB : %1$s, d\'après son firmware. Choisissez Installer ou Mettre à jour.</string>
+    <string name="flash_probed_mismatch">Carte détectée sur l\'USB : %1$s. Son firmware est celui de l\'autre écran, installez celui-ci.</string>
+    <string name="flash_confirm_mismatch">La carte sur l\'USB a un écran %1$s, mais %2$s est sélectionné. Installer quand même ce firmware ?</string>
+    <string name="flash_install_anyway">Installer quand même</string>
     <string name="update_none">Aucune mise à jour disponible (le build %1$d est le dernier)</string>
     <string name="flash_plug_in">Branchez la carte au téléphone avec un câble USB-OTG.</string>
     <string name="flash_device_found">Carte détectée sur l\'USB. Choisissez l\'écran et appuyez sur Installer.</string>
@@ -71,7 +79,7 @@
     <string name="src_suffix_bt"> (Bluetooth)</string>
 
     <!-- ===== page connexion ===== -->
-    <string name="conn_intro">L\'appareil se rend visible pendant 10 minutes après son démarrage, en permanence tant qu\'il n\'est pas configuré, ou après un appui de 3 secondes sur son bouton BOOT. Touchez l\'appareil dès qu\'il apparaît, puis acceptez la demande d\'appairage du téléphone (Android peut en afficher deux).</string>
+    <string name="conn_intro">L\'appareil se rend visible pendant 10 minutes après son démarrage, en permanence tant qu\'il n\'est pas configuré, ou après un appui de 3 secondes sur son bouton BOOT. Touchez l\'appareil dès qu\'il apparaît, puis saisissez le code d\'appairage à 6 chiffres affiché sur son écran quand le téléphone le demande.</string>
     <string name="btn_scan">Rechercher</string>
     <string name="btn_disconnect">Déconnecter</string>
     <string name="conn_none_yet">Aucun appareil connecté pour l’instant</string>
@@ -219,7 +227,7 @@
     <string name="bridge_latest">\ndernière %1$.0f mg/dl %2$s, il y a %3$d min (%4$s)</string>
     <string name="bridge_no_reading">\naucune mesure reçue pour l\'instant</string>
     <string name="btn_pairing">Mode appairage (60 s)</string>
-    <string name="pairing_hint">L’appareil ne s’appaire qu’en mode configuration : maintenez son bouton BOOT ou redémarrez-le, vérifiez qu’aucune liaison de configuration n’est ouverte (CONNECTER › Déconnecter), puis lancez le mode appairage et acceptez les demandes du téléphone.</string>
+    <string name="pairing_hint">L’appareil ne s’appaire qu’en mode configuration : maintenez son bouton BOOT ou redémarrez-le, vérifiez qu’aucune liaison de configuration n’est ouverte (CONNECTER › Déconnecter), puis lancez le mode appairage et saisissez le code affiché sur l’écran de l’appareil quand le téléphone le demande.</string>
     <string name="pairing_open">ouvert, %1$d s restantes</string>
     <string name="pairing_closed">fermé</string>
     <string name="btn_bridge_details">Détails et journal de la passerelle</string>

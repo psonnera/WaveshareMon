@@ -54,6 +54,14 @@
     <string name="flash_erase">Erase all (settings and pairing)</string>
     <string name="flash_install">NEW DEVICE INSTALL</string>
     <string name="btn_update_device">UPDATE DEVICE</string>
+    <string name="flash_link_none">Bluetooth: no device connected.</string>
+    <string name="flash_link_connected">Bluetooth: %1$s, %2$s board</string>
+    <string name="flash_board_unknown">unknown board</string>
+    <string name="flash_probing">Board found on USB, asking it which panel it has…</string>
+    <string name="flash_probed">Board found on USB: %1$s, as its firmware reports. Choose Install or Update.</string>
+    <string name="flash_probed_mismatch">Board found on USB: %1$s. Its firmware is for the other panel, install this one.</string>
+    <string name="flash_confirm_mismatch">The board on USB has a %1$s panel, but %2$s is selected. Install that firmware anyway?</string>
+    <string name="flash_install_anyway">Install anyway</string>
     <string name="update_none">No update available (build %1$d is the latest)</string>
     <string name="flash_plug_in">Plug the board into the phone with a USB-OTG cable.</string>
     <string name="flash_device_found">Board found on USB. Choose the panel and press Install.</string>
@@ -73,7 +81,7 @@
     <string name="src_suffix_bt"> (Bluetooth)</string>
 
     <!-- ===== connection page ===== -->
-    <string name="conn_intro">Hold the BOOT ☀ button for 5 seconds to make the device visible.\nSelect the device then accept pairing (Might be needed twice).</string>
+    <string name="conn_intro">Hold the BOOT ☀ button for 5 seconds to make the device visible.\nSelect the device, then type the 6-digit pairing code shown on its screen when the phone asks.</string>
     <string name="btn_scan">Scan</string>
     <string name="btn_disconnect">Disconnect</string>
     <string name="conn_none_yet">No device connected yet</string>
@@ -229,7 +237,7 @@
     <string name="bridge_latest">\nlatest %1$.0f mg/dl %2$s, %3$d min ago (%4$s)</string>
     <string name="bridge_no_reading">\nno reading received yet</string>
     <string name="btn_pairing">Pairing mode (60 s)</string>
-    <string name="pairing_hint">The device pairs only while in setup mode: hold its BOOT button or restart it, make sure no setup link is open (CONNECT › Disconnect), then start Pairing mode and accept the phone\'s prompts.</string>
+    <string name="pairing_hint">The device pairs only while in setup mode: hold its BOOT button or restart it, make sure no setup link is open (CONNECT › Disconnect), then start Pairing mode and type the code shown on the device\'s screen when the phone asks.</string>
     <string name="pairing_open">open, %1$d s left</string>
     <string name="pairing_closed">closed</string>
     <string name="btn_bridge_details">Bridge details and log</string>

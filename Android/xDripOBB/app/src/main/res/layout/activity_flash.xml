@@ -92,6 +92,18 @@
         android:checked="true"
         android:text="@string/flash_erase" />
 
+    <!-- USB state picture: phone with a free cable (plug it), board found (tick), writing (flash) -->
+    <ImageView
+        android:id="@+id/ivUsb"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:layout_marginTop="10dp"
+        android:padding="8dp"
+        android:background="@drawable/bg_usb_state"
+        android:scaleType="fitCenter"
+        android:importantForAccessibility="no"
+        android:src="@drawable/usb_plug" />
+
     <TextView
         android:id="@+id/tvStatus"
         android:layout_width="match_parent"
@@ -114,6 +126,14 @@
         android:layout_marginTop="6dp"
         android:text="@string/flash_install" />
 
+    <!-- the device connected over Bluetooth (setup link): name and board; picks the tile -->
+    <TextView
+        android:id="@+id/tvLink"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textStyle="bold"
+        android:text="@string/flash_link_none" />
     <!-- green when the connected device has a newer build in the repository (see FlashActivity) -->
     <Button
         android:id="@+id/btnUpdateDevice"
@@ -121,6 +141,13 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:text="@string/btn_update_device"
+        style="@style/Widget.Material3.Button.TonalButton" />
+    <Button
+        android:id="@+id/btnReconnect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:visibility="gone"
         style="@style/Widget.Material3.Button.TonalButton" />
 
     <TextView

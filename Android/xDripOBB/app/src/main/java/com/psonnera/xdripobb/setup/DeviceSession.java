@@ -260,6 +260,7 @@ public final class DeviceSession implements DeviceSetupClient.Listener {
         if (isConnected && client.isReady()) {
             handler.removeCallbacks(infoPoll);
             handler.postDelayed(infoPoll, INFO_POLL_MS);
+            client.readInfo();      // right away: the pages show name, board and battery from it
             client.readConfig();
         }
         if (isConnected) new ObbPrefs(app).setLastLinkMs(System.currentTimeMillis());

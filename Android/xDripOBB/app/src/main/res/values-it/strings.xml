@@ -51,6 +51,14 @@
     <string name="flash_erase">Cancella impostazioni e associazione (prima installazione)</string>
     <string name="flash_install">Installa</string>
     <string name="btn_update_device">AGGIORNA DISPOSITIVO</string>
+    <string name="flash_link_none">Bluetooth: nessun dispositivo connesso.</string>
+    <string name="flash_link_connected">Bluetooth: %1$s, scheda %2$s</string>
+    <string name="flash_board_unknown">scheda sconosciuta</string>
+    <string name="flash_probing">Scheda trovata sull\'USB, richiesta del tipo di schermo…</string>
+    <string name="flash_probed">Scheda trovata sull\'USB: %1$s, secondo il suo firmware. Scegli Installa o Aggiorna.</string>
+    <string name="flash_probed_mismatch">Scheda trovata sull\'USB: %1$s. Il suo firmware è per l\'altro schermo, installa questo.</string>
+    <string name="flash_confirm_mismatch">La scheda sull\'USB ha uno schermo %1$s, ma è selezionato %2$s. Installare comunque questo firmware?</string>
+    <string name="flash_install_anyway">Installa comunque</string>
     <string name="update_none">Nessun aggiornamento disponibile (il build %1$d è l’ultimo)</string>
     <string name="flash_plug_in">Collega la scheda al telefono con un cavo USB-OTG.</string>
     <string name="flash_device_found">Scheda trovata sull\'USB. Scegli lo schermo e premi Installa.</string>
@@ -70,7 +78,7 @@
     <string name="src_suffix_bt"> (Bluetooth)</string>
 
     <!-- ===== pagina connessione ===== -->
-    <string name="conn_intro">Il dispositivo è visibile per 10 minuti dopo l\'avvio, in permanenza finché non è configurato, oppure dopo aver tenuto premuto il pulsante BOOT per 3 secondi. Tocca il dispositivo appena compare, poi accetta la richiesta di associazione del telefono (Android può mostrarne due).</string>
+    <string name="conn_intro">Il dispositivo è visibile per 10 minuti dopo l\'avvio, in permanenza finché non è configurato, oppure dopo aver tenuto premuto il pulsante BOOT per 3 secondi. Tocca il dispositivo appena compare, poi digita il codice di associazione a 6 cifre mostrato sul suo schermo quando il telefono lo chiede.</string>
     <string name="btn_scan">Cerca</string>
     <string name="btn_disconnect">Disconnetti</string>
     <string name="conn_none_yet">Nessun dispositivo ancora connesso</string>
@@ -218,7 +226,7 @@
     <string name="bridge_latest">\nultima %1$.0f mg/dl %2$s, %3$d min fa (%4$s)</string>
     <string name="bridge_no_reading">\nnessuna lettura ricevuta finora</string>
     <string name="btn_pairing">Modalità associazione (60 s)</string>
-    <string name="pairing_hint">Il dispositivo si associa solo in modalità configurazione: tieni premuto il pulsante BOOT o riavvialo, verifica che nessun collegamento di configurazione sia aperto (CONNETTI › Disconnetti), poi avvia la modalità associazione e accetta le richieste del telefono.</string>
+    <string name="pairing_hint">Il dispositivo si associa solo in modalità configurazione: tieni premuto il pulsante BOOT o riavvialo, verifica che nessun collegamento di configurazione sia aperto (CONNETTI › Disconnetti), poi avvia la modalità associazione e digita il codice mostrato sullo schermo del dispositivo quando il telefono lo chiede.</string>
     <string name="pairing_open">aperta, %1$d s rimanenti</string>
     <string name="pairing_closed">chiusa</string>
     <string name="btn_bridge_details">Dettagli e log del bridge</string>

@@ -53,6 +53,12 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
     private boolean bwSelected = false;   // Color is the default, as before
     private DeviceSession session;
     private boolean updateMode = false;   // UPDATE DEVICE over USB: same images, settings and pairing kept
+    private String tileChosenFor = "";    // device address whose board already picked the tile
+    private String probedBoard = "";      // board name the board on USB reported over its console ("" = unknown)
+    private boolean probedColor = false;  // the panel it really drives (its firmware's word, corrected by its panel check)
+    private volatile boolean probing = false;
+    private boolean pendingFlash = false; // the USB permission was asked for a flash (true) or for the probe (false)
+    private final Runnable tick = this::refreshLink;   // countdown on the Reconnect button
     private UsbManager usb;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean running = false;
@@ -63,12 +69,15 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
             String action = intent.getAction();
             if (ACTION_USB_PERMISSION.equals(action)) {
                 UsbDevice d = deviceExtra(intent);
-                if (d != null && intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) startFlash(d, !updateMode && b.cbErase.isChecked());
-                else setStatus(getString(R.string.flash_permission_denied));
+                if (d != null && intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                    if (pendingFlash) startFlash(d, !updateMode && b.cbErase.isChecked());
+                    else probeUsb(d);
+                } else setStatus(getString(R.string.flash_permission_denied));
             } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
-                setStatus(getString(R.string.flash_device_found));
+                if (!running) showUsbState();
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-                if (!running) setStatus(getString(R.string.flash_plug_in));
+                probedBoard = "";
+                if (!running) showUsbState();
             }
         }
     };
@@ -89,6 +98,7 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
         session = DeviceSession.get(this);
         b.btnInstall.setOnClickListener(v -> onInstall());
         b.btnUpdateDevice.setOnClickListener(v -> onUpdateDevice());
+        b.btnReconnect.setOnClickListener(v -> Reconnect.start(this, session));
         b.cardBw.setOnClickListener(v -> selectPanel(true));
         b.cardColor.setOnClickListener(v -> selectPanel(false));
         selectPanel(false);
@@ -97,7 +107,88 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
         f.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
         f.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
         ContextCompat.registerReceiver(this, receiver, f, ContextCompat.RECEIVER_NOT_EXPORTED);
-        setStatus(getString(UsbDevices.INSTANCE.find(usb) != null ? R.string.flash_device_found : R.string.flash_plug_in));
+        showUsbState();
+    }
+
+    /** picture + line above NEW DEVICE INSTALL: a board on the USB port, or not (only while no flash runs) */
+    private void showUsbState() {
+        UsbSerialDriver driver = UsbDevices.INSTANCE.find(usb);
+        setStatus(getString(driver != null ? R.string.flash_device_found : R.string.flash_plug_in));
+        b.ivUsb.setImageResource(driver != null ? R.drawable.usb_plugged : R.drawable.usb_plug);
+        if (driver != null) probeUsb(driver.getDevice());
+    }
+
+    private void requestUsbPermission(UsbDevice device) {
+        Intent intent = new Intent(ACTION_USB_PERMISSION).setPackage(getPackageName());
+        int flags = Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0;
+        usb.requestPermission(device, PendingIntent.getBroadcast(this, 0, intent, flags));
+    }
+
+    /**
+     * Asks the board on USB which panel it drives, so that the tile matches it before anything
+     * is burned. A WaveshareMon firmware answers `status` on its console with `board=` (its own
+     * image) and `panel=` (whether the screen agrees: a wrong image is caught after its first
+     * refresh, and then the real panel is the other one). A blank board, or another firmware,
+     * says nothing and the choice stays with the user. The two S3 boards differ by the panel
+     * only, the ROM bootloader cannot tell them apart.
+     */
+    private void probeUsb(UsbDevice device) {
+        if (running || probing) return;
+        if (!usb.hasPermission(device)) { pendingFlash = false; requestUsbPermission(device); return; }
+        probing = true;
+        setStatus(getString(R.string.flash_probing));
+        new Thread(() -> {
+            String board = "", panel = "";
+            UsbSerialTransport t = null;
+            try {
+                UsbSerialDriver driver = UsbDevices.INSTANCE.driverFor(usb, device);
+                UsbDeviceConnection connection = driver == null ? null : usb.openDevice(device);
+                if (connection != null) {
+                    t = new UsbSerialTransport(driver.getPorts().get(0), device, connection);
+                    t.open(115200);        // DTR and RTS stay low: raising them resets the USB-Serial-JTAG chip
+                    t.purge();
+                    t.write("status\n".getBytes());
+                    StringBuilder sb = new StringBuilder();
+                    byte[] buf = new byte[512];
+                    long end = System.currentTimeMillis() + 2000;
+                    while (System.currentTimeMillis() < end && board.isEmpty()) {
+                        int n = t.read(buf, 300);
+                        if (n > 0) sb.append(new String(buf, 0, n));
+                        board = token(sb, "board=");
+                        panel = token(sb, "panel=");
+                    }
+                }
+            } catch (Exception e) {
+                note("probe: " + e.getMessage());
+            } finally {
+                if (t != null) t.close();
+            }
+            final String fb = board, fp = panel;
+            handler.post(() -> {
+                probing = false;
+                if (running) return;
+                probedBoard = fb;
+                if (fb.isEmpty()) { if (UsbDevices.INSTANCE.find(usb) != null) setStatus(getString(R.string.flash_device_found)); return; }
+                boolean color = fb.endsWith("G");
+                boolean mismatch = fp.equalsIgnoreCase("MISMATCH");
+                if (mismatch) color = !color;       // the image is wrong for the screen, so the screen is the other one
+                probedColor = color;
+                selectPanel(!color);
+                String name = getString(color ? R.string.flash_panel_color_short : R.string.flash_panel_bw_short);
+                setStatus(getString(mismatch ? R.string.flash_probed_mismatch : R.string.flash_probed, name));
+            });
+        }, "usb-probe").start();
+    }
+
+    /** value of `key=` up to the next blank, or "" while the token is still arriving */
+    private static String token(CharSequence text, String key) {
+        String s = text.toString();
+        int i = s.indexOf(key);
+        if (i < 0) return "";
+        int e = i + key.length();
+        while (e < s.length() && !Character.isWhitespace(s.charAt(e))) e++;
+        if (e == s.length()) return "";
+        return s.substring(i + key.length(), e);
     }
 
     @Override
@@ -105,16 +196,50 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
         super.onStart();
         session.addListener(this);
         if (session.isReady() && session.latestBuild() == 0) session.checkForUpdate();   // asks the repository once
+        if (session.isReady() && session.info() == null) session.readInfo();
         refreshUpdateButton();
+        refreshLink();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        handler.removeCallbacks(tick);
         session.removeListener(this);
     }
 
-    @Override public void onChanged() { handler.post(this::refreshUpdateButton); }
+    @Override public void onChanged() { handler.post(() -> { refreshUpdateButton(); refreshLink(); }); }
+
+    /**
+     * The Bluetooth side of this page: which device the app is linked to, and its board.
+     * A known board picks the matching tile once per device; the user can still change it.
+     */
+    private void refreshLink() {
+        org.json.JSONObject info = session.info();
+        if (session.isConnected() && info != null) {
+            String board = info.optString("board", "");
+            boolean color = board.endsWith("G");
+            String panel = getString(board.isEmpty() ? R.string.flash_board_unknown
+                    : color ? R.string.flash_panel_color_short : R.string.flash_panel_bw_short);
+            b.tvLink.setText(getString(R.string.flash_link_connected, info.optString("name", "?"), panel));
+            String addr = info.optString("mac", "");
+            if (!board.isEmpty() && !addr.equals(tileChosenFor) && !running) {
+                tileChosenFor = addr;
+                selectPanel(!color);
+            }
+        } else if (session.isConnected()) {
+            b.tvLink.setText(R.string.page_connecting);
+        } else if (session.isReconnecting()) {
+            b.tvLink.setText(R.string.state_reconnecting);
+        } else if (session.reconnectFailed()) {
+            b.tvLink.setText(R.string.state_reconnect_failed);
+        } else {
+            b.tvLink.setText(R.string.flash_link_none);
+        }
+        Reconnect.update(b.btnReconnect, session, new com.psonnera.xdripobb.obb.ObbPrefs(this));
+        handler.removeCallbacks(tick);
+        if (session.isReconnecting()) handler.postDelayed(tick, 1000);
+    }
     @Override public void onLog(String line) {}
 
     @Override
@@ -148,7 +273,13 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
             flashWithPermission(driver.getDevice());
             return;
         }
-        if (!session.isReady() || session.config() == null) { setStatus(getString(R.string.update_not_connected)); return; }
+        if (!session.isReady()) { setStatus(getString(R.string.update_not_connected)); return; }
+        if (session.config() == null) {
+            // linked a moment ago: the config is still on its way, ask again and say so
+            session.readConfig();
+            setStatus(getString(R.string.page_connecting));
+            return;
+        }
         if (session.latestBuild() == 0) {
             // repository not asked yet (or the check failed): ask again, the button turns green if there is one
             session.checkForUpdate();
@@ -161,12 +292,24 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
     }
 
     private void flashWithPermission(UsbDevice device) {
-        if (usb.hasPermission(device)) startFlash(device, !updateMode && b.cbErase.isChecked());
-        else {
-            Intent intent = new Intent(ACTION_USB_PERMISSION).setPackage(getPackageName());
-            int flags = Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0;
-            usb.requestPermission(device, PendingIntent.getBroadcast(this, 0, intent, flags));
+        if (probing) return;
+        if (!probedBoard.isEmpty() && probedColor == bwSelected) {
+            // the board said which panel it has and the tile disagrees: a wrong image shows garbage
+            String has = getString(probedColor ? R.string.flash_panel_color_short : R.string.flash_panel_bw_short);
+            String chosen = getString(bwSelected ? R.string.flash_panel_bw_short : R.string.flash_panel_color_short);
+            new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setMessage(getString(R.string.flash_confirm_mismatch, has, chosen))
+                    .setPositiveButton(R.string.flash_install_anyway, (d, w) -> flashNow(device))
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+            return;
         }
+        flashNow(device);
+    }
+
+    private void flashNow(UsbDevice device) {
+        if (usb.hasPermission(device)) startFlash(device, !updateMode && b.cbErase.isChecked());
+        else { pendingFlash = true; requestUsbPermission(device); }
     }
 
     /** filled green when the connected device can be updated, tonal otherwise */
@@ -192,6 +335,7 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
         b.btnInstall.setEnabled(false); b.btnUpdateDevice.setEnabled(false);
         b.cardColor.setEnabled(false); b.cardBw.setEnabled(false); b.cbErase.setEnabled(false);
         b.tvDone.setVisibility(View.GONE);
+        b.ivUsb.setImageResource(R.drawable.usb_flashing);
         b.progress.setVisibility(View.VISIBLE);
         b.progress.setProgress(0);
         new Thread(() -> run(device, panel, erase), "flash").start();
@@ -267,6 +411,7 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
             handler.post(() -> {
                 b.btnInstall.setEnabled(true); b.btnUpdateDevice.setEnabled(true);
                 b.cardColor.setEnabled(true); b.cardBw.setEnabled(true); b.cbErase.setEnabled(true);
+                b.ivUsb.setImageResource(UsbDevices.INSTANCE.find(usb) != null ? R.drawable.usb_plugged : R.drawable.usb_plug);
             });
         }
     }
