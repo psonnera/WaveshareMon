@@ -34,6 +34,20 @@
             android:layout_marginTop="10dp"
             android:text="@string/btn_save" />
 
+        <!-- the setup link: "not connected" / reconnecting / its failure, and the way back to the device -->
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+        <Button
+            android:id="@+id/btnReconnect"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:visibility="gone"
+            style="@style/Widget.Material3.Button.TonalButton" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

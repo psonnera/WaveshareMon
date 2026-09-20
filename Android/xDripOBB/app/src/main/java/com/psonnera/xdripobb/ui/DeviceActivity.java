@@ -40,6 +40,7 @@ public class DeviceActivity extends AppCompatActivity implements DeviceSession.L
         session = DeviceSession.get(this);
         form = new ConfigForm(this, b.form, ConfigFields.PAGE_DEVICE);
         b.btnSave.setOnClickListener(v -> save());
+        b.btnReconnect.setOnClickListener(v -> Reconnect.start(this, session));
         for (ConfigFields.Command c : ConfigFields.COMMANDS) {
             Chip chip = new Chip(this);
             chip.setText(c.label);
@@ -73,8 +74,12 @@ public class DeviceActivity extends AppCompatActivity implements DeviceSession.L
     @Override
     protected void onStop() {
         super.onStop();
+        handler.removeCallbacks(tick);
         session.removeListener(this);
     }
+
+    private final Runnable tick = this::refresh;    // the countdown on the Reconnect button
+    private boolean wasReady = false;
 
     @Override public void onChanged() { handler.post(this::refresh); }
     @Override public void onLog(String line) { handler.post(this::renderLog); }
@@ -96,6 +101,14 @@ public class DeviceActivity extends AppCompatActivity implements DeviceSession.L
         if (inf != null && !inf.optString("name", "").isEmpty())
             form.setHint("name", getString(R.string.hint_name_auto, inf.optString("name")));
         boolean ready = session.isReady();
+        // the commands and Save need the link: say so, and offer the way back
+        if (!session.isConnected()) b.tvStatus.setText(Reconnect.statusText(this, session, R.string.page_not_connected));
+        else if (!ready) b.tvStatus.setText(R.string.page_connecting);
+        else if (!wasReady) b.tvStatus.setText("");      // the "not connected" text must not outlive the link
+        wasReady = ready;
+        Reconnect.update(b.btnReconnect, session, new com.psonnera.xdripobb.obb.ObbPrefs(this));
+        handler.removeCallbacks(tick);
+        if (session.isReconnecting()) handler.postDelayed(tick, 1000);
         b.btnSave.setEnabled(ready);
         for (int i = 0; i < b.commands.getChildCount(); i++) b.commands.getChildAt(i).setEnabled(ready);
         JSONObject info = session.info();

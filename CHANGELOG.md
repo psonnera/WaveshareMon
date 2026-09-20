@@ -2,7 +2,8 @@
 
 ## Unreleased — 1.1.0
 
-- App, SETTINGS: the automatic device name shows as the placeholder of the name field. The
+- App, SETTINGS: the page says when the setup link is down and offers **Reconnect**, like the
+  other pages (its commands and Save need the link). The automatic device name shows as the placeholder of the name field. The
   time zone is a list of UTC offsets instead of a POSIX string: **this phone's zone** first and
   selected by default (with its daylight-saving rules), then the fixed offsets; the device still
   receives the POSIX form. It is asked only for the Wi-Fi sources, the Bluetooth sources take
