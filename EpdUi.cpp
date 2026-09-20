@@ -559,7 +559,13 @@ void EpdUi::drawStatusPage() {
     drawText("app  or  Wi-Fi network:", W / 2, 97, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
     drawText(cfg.name(), W / 2, 112, &FreeSansBold9pt7b, 1, GxEPD_BLACK, AL_CENTER);
     char url[40];
-    snprintf(url, sizeof(url), "and open %s", webSetupApIp());
+    if (cfg.source == SRC_OBB) {
+      // the phone asks for this code when it pairs (see bleBegin)
+      snprintf(url, sizeof(url), "%s  PIN %06lu", webSetupApIp(), (unsigned long)setupPasskey());
+      codeShown = true;
+    } else {
+      snprintf(url, sizeof(url), "and open %s", webSetupApIp());
+    }
     drawText(url, W / 2, 127, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
   }
 
@@ -577,6 +583,7 @@ void EpdUi::drawStatusPage() {
 
 void EpdUi::render() {
   rendering = true;
+  codeShown = false;
   ensureInit();
   display.setFullWindow();
   display.setRotation(0);
@@ -647,6 +654,44 @@ void EpdUi::drawPowerOff() {
   s_rtc.lastAgeShown = -1;
   redrawPending = true;
   rendering = false;
+}
+
+// Pairing code page. Drawn from the main loop when a pairing asks for the code
+// and the status page (which carries it in setup mode) is not on screen: a
+// device that already shows readings, re-paired without a restart.
+void EpdUi::drawPasskey(uint32_t code) {
+  rendering = true;
+  ensureInit();
+  display.setFullWindow();
+  display.setRotation(0);
+  display.firstPage();
+  do {
+    display.fillScreen(GxEPD_WHITE);
+    drawText("Pairing code", W / 2, 50, &FreeSansBold12pt7b, 1, GxEPD_BLACK, AL_CENTER);
+    char digits[8];
+    snprintf(digits, sizeof(digits), "%06lu", (unsigned long)code);
+    drawText(digits, W / 2, 85, &FreeSansBold18pt7b, 1, GxEPD_BLACK, AL_CENTER);
+    drawText("type it on the phone", W / 2, 135, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+    drawText(cfg.name(), W / 2, 160, &FreeSans9pt7b, 1, GxEPD_BLACK, AL_CENTER);
+  } while (display.nextPage());
+  display.hibernate();
+  s_rtc.lastLive = 2;                     // the next render redraws in full
+  s_rtc.lastAgeShown = -1;
+  codeShown = true;
+  redrawPending = true;
+  rendering = false;
+}
+
+void EpdUi::showPasskey(uint32_t code) {
+  passkeyCode = code;
+  passkeyAsked = true;
+}
+
+void EpdUi::passkeyTick() {
+  if (!passkeyAsked || rendering) return;
+  passkeyAsked = false;
+  if (codeShown) return;                  // already readable on the status page
+  drawPasskey(passkeyCode);
 }
 
 void EpdUi::powerDown() {

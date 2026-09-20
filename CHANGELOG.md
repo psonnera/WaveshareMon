@@ -2,6 +2,33 @@
 
 ## Unreleased — 1.1.0
 
+- App, PROGRAM page: a picture above the install button shows the USB state (plug the board,
+  board found, writing); the board on USB is asked over its console which panel it drives
+  (`status` answers `board=` and `panel=`), the matching tile is selected and a contradicting
+  choice asks for confirmation before anything is burned. A blank board says nothing and the
+  choice stays with the user. The Bluetooth link line names the connected device and its board,
+  which also picks the tile; a Reconnect button appears while no device is linked.
+- OBB pairing is now a **passkey shown on the display**: the phone asks for the 6-digit code
+  (once, in Pairing mode) instead of two blind consents. The bond then survives sleeps and
+  reboots on the 3.x core: Android's GATT server asks for an authenticated link the instant a
+  bonded device connects, NimBLE answers a Just Works key with a fresh pairing, and the phone
+  drops that pairing after 30 s together with the bond; an authenticated key is simply used to
+  encrypt. The code is on the status page in setup mode (`PIN 123456` under the network line)
+  and drawn on its own page when a pairing asks for it elsewhere. A device paired by an earlier
+  firmware pairs again once, in setup mode. Mi Band and xDrip4iOS modes keep Just Works.
+- App, PROGRAM page: a picture above the install button shows the USB state (plug the board,
+  board found, writing); the board on USB is asked over its console which panel it drives
+  (`status` answers `board=` and `panel=`), the matching tile is selected and a contradicting
+  choice asks for confirmation before anything is burned. A blank board says nothing and the
+  choice stays with the user. The Bluetooth link line names the connected device and its board,
+  which also picks the tile; a Reconnect button appears while no device is linked.
+- Fix: the OBB bond survived neither a reboot nor the first sleep on the 3.x core. Android's
+  GATT server asks for an authenticated link the instant a bonded device connects; NimBLE will
+  not answer that with the Just Works key and starts a fresh pairing instead, which the phone
+  drops after 30 s together with the bond. The firmware used to start LTK encryption right
+  after `connect()`, but NimBLE-Arduino 2.x releases `connect()` only seven connection intervals
+  later, after the phone's request has been processed. Encryption is now started from a GAP
+  event listener, inside the connect event, whenever a key for the peer is stored.
 - xDrip4iOS / Mi Band: the device keeps advertising for the pushing phone while the setup app
   holds a link from another phone (NimBLE stops advertising on a connection and the firmware
   only restarted it once every client had left, so opening the Android app blocked the iPhone),

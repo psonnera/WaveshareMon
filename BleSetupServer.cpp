@@ -252,6 +252,11 @@ class ServerCb : public NimBLEServerCallbacks {
     miBandOnConnect(info.getConnHandle());
     xdrip4iosOnConnect(info.getConnHandle());
   }
+  uint32_t onPassKeyDisplay() override {
+    uint32_t k = setupPasskey();
+    ui.showPasskey(k);                      // drawn by the main loop
+    return k;
+  }
   void onAuthenticationComplete(NimBLEConnInfo &info) override {
     // the phone's keys arrive after this event; rewrite the stored bond a
     // little later from the loop (see BleBonds.h)
@@ -365,6 +370,10 @@ void setupServerAdvertise(bool on) {
   }
   ui.requestRedraw();
 }
+
+static uint32_t s_passkey = 0;
+uint32_t setupPasskey() { return s_passkey; }
+void     setupSetPasskey(uint32_t code) { s_passkey = code; }
 
 bool setupServerAdvertising() { return s_advertising; }
 bool setupServerClientConnected() { return s_clients > 0; }

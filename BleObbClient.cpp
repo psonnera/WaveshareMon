@@ -13,6 +13,7 @@
 #include "BleBonds.h"
 #include "BleSetupServer.h"
 #include "PowerCycle.h"
+#include "EpdUi.h"
 #include <NimBLEDevice.h>
 #include <esp_task_wdt.h>
 #include "nimble/nimble/host/include/host/ble_store.h"
@@ -100,6 +101,12 @@ class ScanCb : public NimBLEScanCallbacks {
 
 class ClientCb : public NimBLEClientCallbacks {
   void onConnect(NimBLEClient *) override {}
+  uint32_t onPassKeyDisplay(NimBLEConnInfo &) override {
+    uint32_t k = setupPasskey();
+    ui.showPasskey(k);                      // drawn by the main loop
+    logDebug("passkey %06lu", (unsigned long)k);
+    return k;
+  }
   void onDisconnect(NimBLEClient *, int reason) override {
     logAdd("xDrip disconnected (%d)", reason);
     s_disconnected = true;
@@ -192,8 +199,14 @@ static bool connectAndSubscribe() {
     struct ble_store_value_sec v = {};
     int rc = ble_store_read_peer_sec(&k, &v);
     hadKey = rc == 0 && v.ltk_present;
-    logDebug("id %s/t%d key rc=%d ltk=%d", id.toString().c_str(), id.getType(), rc,
-             rc == 0 ? v.ltk_present : -1);
+    logDebug("id %s/t%d key rc=%d ltk=%d auth=%d", id.toString().c_str(), id.getType(), rc,
+             rc == 0 ? v.ltk_present : -1, rc == 0 ? v.authenticated : -1);
+    if (hadKey && !v.authenticated) {
+      // Just Works bond that obbDropOldBonds() could not remove: not usable,
+      // the phone asks for an authenticated link on every reconnect
+      logAdd("old pairing: pair again with the code");
+      hadKey = false;
+    }
   }
   // No key for this phone means a pairing would follow, with two consent
   // prompts the user has to accept inside the 30 s radio window of a normal
@@ -209,25 +222,21 @@ static bool connectAndSubscribe() {
   }
   if (!hadKey) cycleStayAwake(90000UL);   // the consent prompts must not be cut short by the window
 
-  // Encrypted link is mandatory; first contact bonds (Just Works) while the
-  // user has the pairing window open on the phone and accepts its dialog.
-  //
-  // Race on every later connection: Android's GATT server sends an SMP
-  // Security Request (with the MITM flag) as soon as a bonded device
-  // connects. NimBLE refuses to answer such a request with an unauthenticated
-  // (Just Works) key and starts a fresh pairing instead, which the phone will
-  // not accept outside its pairing window: both sides then drop the bond.
-  // Starting LTK encryption right here, before the phone's request is
-  // processed, makes that request arrive mid-procedure and be ignored.
-  // The security procedure is started asynchronously and polled with a
-  // deadline: NimBLE's blocking variant waits without limit, and a first
-  // pairing on Android needs two user prompts that can take longer than the
-  // 30 s SMP timer while the loop task's watchdog fires at 60 s.
+  // Encrypted link is mandatory; first contact bonds with the passkey shown on
+  // the display while the user has the pairing window open on the phone.
+  // Android's GATT server sends an SMP Security Request (MITM flag) as soon as
+  // a bonded device connects; with the authenticated key NimBLE answers it by
+  // encrypting the link, and this call then finds the procedure in progress or
+  // done. The security procedure is polled with a deadline: NimBLE's blocking
+  // variant waits without limit, and a first pairing on Android needs the user
+  // to type the code, which can take longer than the 30 s SMP timer while the
+  // loop task's watchdog fires at 60 s. The code page is drawn meanwhile.
   bool secured = false;
   if (s_client->isConnected() && s_client->secureConnection(true)) {
     uint32_t t0 = millis();
     while (s_client->isConnected() && millis() - t0 < 50000) {
       if (s_client->getConnInfo().isEncrypted()) { secured = true; break; }
+      ui.passkeyTick();
       esp_task_wdt_reset();
       delay(50);
     }
@@ -316,6 +325,25 @@ static void logBonds() {
              rc, v.ltk_present, v.irk_present, v.csrk_present, v.authenticated, v.sc);
   }
   if (!n) logDebug("no bond stored");
+}
+
+// Bonds made by an earlier firmware with Just Works are useless in OBB mode:
+// Android's GATT server asks for an authenticated link the instant a bonded
+// device connects, and NimBLE answers an unauthenticated key with a fresh
+// pairing that the phone drops together with the bond. Removing a bond needs
+// the controller's resolving list, which refuses while anything advertises,
+// scans or is connected, so this runs right after init (bleBegin), before the
+// setup server. The phone keeps its side and accepts the new pairing.
+void obbDropOldBonds() {
+  for (int i = NimBLEDevice::getNumBonds() - 1; i >= 0; i--) {
+    NimBLEAddress a = NimBLEDevice::getBondedAddress(i);
+    struct ble_store_key_sec k = {};
+    k.peer_addr = *a.getBase();
+    struct ble_store_value_sec v = {};
+    if (ble_store_read_peer_sec(&k, &v) != 0 || !v.ltk_present || v.authenticated) continue;
+    bool ok = NimBLEDevice::deleteBond(a);
+    logAdd("old pairing dropped (%s): pair again", ok ? "ok" : "failed");
+  }
 }
 
 void obbBegin() {

@@ -16,6 +16,7 @@
 enum ObbState : uint8_t { OBB_IDLE = 0, OBB_SCANNING, OBB_CONNECTING, OBB_CONNECTED };
 
 // call once after NimBLEDevice::init()
+void obbDropOldBonds();   // OBB mode, right after NimBLEDevice::init: Just Works bonds go
 void obbBegin();
 // drive scan / connect / reconnect from the main loop
 void obbTick();

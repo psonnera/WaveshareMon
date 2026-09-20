@@ -143,8 +143,9 @@ python -m esptool --chip esp32s3 --port COM4 --baud 921600 --before usb-reset wr
    otherwise, or after holding BOOT for 3 s.
 2. Configure it either from the Android app or from any browser:
    - **Android app**: install **WaveShareMon** (`Android/xDripOBB`, see its README). It opens on
-     the setup screen: press **Scan**, tap the device, accept the pairing prompt(s) (Android 11
-     asks twice).
+     the setup screen: press **Scan**, tap the device, confirm the pairing request and type the
+     6-digit code the device shows in its setup box (`PIN 123456`; a device set to a source other
+     than the Bluetooth bridge pairs with a plain consent, asked twice on Android 11).
    - **Any computer, tablet or phone**: while in setup mode the device also runs an open Wi-Fi
      access point named like itself (`WaveshareMon-XXXX`). Join it and open `http://192.168.4.1`
      (most systems pop the page up by themselves). The page offers the same settings, commands
@@ -173,8 +174,9 @@ python -m esptool --chip esp32s3 --port COM4 --baud 921600 --before usb-reset wr
 3. Then, per source:
    - **xDrip / AAPS through the phone**: press **Bluetooth bridge**, switch the bridge on, tick
      the inputs you use (xDrip Broadcast Service API, AndroidAPS status broadcast, xDrip
-     Compatible Broadcast), press **Pairing mode (60 s)** and accept the phone's prompt(s). The
-     bond is stored on both sides; reconnection is automatic.
+     Compatible Broadcast), press **Pairing mode (60 s)**, confirm the phone's *Pairing request*
+     and type the code shown on the device. The bond is stored on both sides; reconnection is
+     automatic.
    - **xDrip Mi Band**: in xDrip open *Settings › Smart Watch Features › MiBand*, switch **Use
      MiBand Band** on, leave **Mac address** empty (the auto search finds `MI Band 2`), switch
      **Send Readings** on and press **Update BG manually** once. The device stores xDrip's
@@ -189,18 +191,22 @@ python -m esptool --chip esp32s3 --port COM4 --baud 921600 --before usb-reset wr
 
 ## Pairing notes
 
-- For the Bluetooth bridge the board initiates the bond. Android shows a **"Pairing request"
-  notification**; open it and confirm **Pair**. On Android 11 the phone then asks a **second
-  time**: a new "Pairing request" notification appears right after the first Pair, and the bond
-  only completes once that one is confirmed too (the first dialog is Android's consent to the
-  incoming request, the second is the actual pairing confirmation). Both must be confirmed within
-  30 s of the board connecting, while the app's pairing window is open, otherwise both sides time
-  out and the app drops the link.
-- Reconnecting after a reboot or a wake does not pair again: the board starts encryption with the
-  stored key before Android's Security Request arrives, so the link is up within a couple of
-  seconds. If the phone has forgotten the device (Bluetooth settings › Forget, or the bond was
-  lost), open **Pairing mode** on the bridge screen again; the device re-pairs by itself within a
-  minute.
+- For the Bluetooth bridge the board initiates the bond, as a **passkey pairing**: Android shows
+  a **"Pairing request" notification**; open it and confirm **Pair** (Android's consent to the
+  incoming request), then a second request asks for the **6-digit PIN**. It is on the device's
+  screen: `PIN 123456` in the setup box of the status page, or a *Pairing code* page of its own
+  when a pairing starts while readings are shown. The code is drawn afresh at every boot. Both
+  steps must be done within 30 s of the board connecting, while the app's pairing window is open,
+  otherwise both sides time out; the device retries 30 s later while in setup mode.
+- Why a code: Android's GATT server asks for an authenticated link the instant a bonded device
+  connects. With a Just Works (unauthenticated) key NimBLE answers that with a fresh pairing,
+  which the phone drops after 30 s together with the bond; with the authenticated key the link is
+  simply re-encrypted, so reconnecting after a reboot or a wake needs no prompt and takes a couple
+  of seconds. A device paired by a firmware before the passkey pairing drops its old bond at boot
+  and pairs again once. The other sources (Mi Band, xDrip4iOS) and the setup link of a device set
+  to a Wi-Fi source keep Just Works. If the phone has forgotten the device (Bluetooth settings ›
+  Forget, or the bond was lost), open **Pairing mode** on the bridge screen again; the device
+  re-pairs by itself within a minute.
 - The other way round is handled too: after a factory reset, an **Erase device** flash or the
   serial `unbond`, the device takes a new Bluetooth address (a static random address derived from
   its chip address and a stored nonce), so a phone that still holds the old bond sees a new device

@@ -142,10 +142,10 @@ void debugInjectPoll() {
                     dxStatus(), llStatus());
       Serial.printf("[dbg] build=%lu ota='%s' server=%lu x4i=%s pw=%s\n", (unsigned long)WSMON_BUILD, otaStatus(),
                     (unsigned long)otaLatestBuild(), xdrip4iosStateName(), cfg.x4iPassword[0] ? "set" : "none");
-      Serial.printf("[dbg] board=%s panel=%s wifimode=%d ap=%s/%s apip=%s apclients=%d web=%d\n", BOARD_NAME,
+      Serial.printf("[dbg] board=%s panel=%s wifimode=%d ap=%s/%s apip=%s apclients=%d web=%d pin=%06lu\n", BOARD_NAME,
                     ui.panelOk() ? "ok" : "MISMATCH", (int)WiFi.getMode(), wifiApActive() ? "on" : "off",
                     wifiApUp() ? "up" : "down", WiFi.softAPIP().toString().c_str(), (int)WiFi.softAPgetStationNum(),
-                    webSetupActive());
+                    webSetupActive(), (unsigned long)setupPasskey());
       if (NimBLEDevice::isInitialized()) {
         int nb = NimBLEDevice::getNumBonds();
         Serial.printf("[dbg] bonds=%d", nb);

@@ -87,10 +87,25 @@ static void bleBegin() {
     NimBLEDevice::setOwnAddr(v);
     NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_RANDOM);
   }
-  // Just Works bonding with an encrypted link, as required by the OBB spec
-  NimBLEDevice::setSecurityAuth(true /*bond*/, false /*mitm*/, cfg.bleSecureConn != 0 /*secure conn*/);
-  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+  // Bonding with an encrypted link, as required by the OBB spec. In OBB mode the
+  // pairing is a passkey shown on the display and typed on the phone: Android's
+  // GATT server asks for an authenticated link the instant a bonded device
+  // connects, and NimBLE answers a Just Works key with a fresh pairing, which
+  // the phone drops after 30 s together with the bond. An authenticated key is
+  // simply used for encryption. The other modes keep Just Works (their phones
+  // expect it). The code is drawn once per boot: the status page shows it in
+  // setup mode, the pairing itself asks for it otherwise.
+  bool passkey = cfg.source == SRC_OBB;
+  NimBLEDevice::setSecurityAuth(true /*bond*/, passkey /*mitm*/, cfg.bleSecureConn != 0 /*secure conn*/);
+  NimBLEDevice::setSecurityIOCap(passkey ? BLE_HS_IO_DISPLAY_ONLY : BLE_HS_IO_NO_INPUT_OUTPUT);
+  if (passkey) {
+    // The library's own static code stays at its default: only then does it
+    // ask the pairing callbacks, which return this one and put it on screen.
+    setupSetPasskey(esp_random() % 1000000UL);
+    logDebug("pin %06lu", (unsigned long)setupPasskey());
+  }
   NimBLEDevice::setMTU(517);
+  if (passkey) obbDropOldBonds();          // before anything advertises or scans
   setupServerBegin();
   if (cfg.source == SRC_OBB) obbBegin();
   if (cfg.source == SRC_MIBAND) miBandBegin();
@@ -247,6 +262,7 @@ void loop() {
   otaTick();                                  // firmware update check / install (blocks while installing)
 
   cycleTick();                                // may deep-sleep and not return
+  ui.passkeyTick();                           // a pairing in progress wants its code on screen
   ui.tick();
   delay(10);
 }

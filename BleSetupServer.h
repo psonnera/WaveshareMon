@@ -24,6 +24,8 @@ void setupServerBegin();
 // start / stop advertising the setup service
 void setupServerAdvertise(bool on);
 bool setupServerAdvertising();
+uint32_t setupPasskey();                 // the pairing code of this boot (OBB mode: passkey pairing)
+void     setupSetPasskey(uint32_t code); // drawn per boot by bleBegin
 bool setupServerClientConnected();
 // forward new log lines to a subscribed app; serve deferred commands
 void setupServerTick();

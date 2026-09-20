@@ -17,6 +17,8 @@ public:
   void flush();                   // end of a wake window: render now if anything changed
   void powerDown();               // panel supply off before deep sleep
   void drawPowerOff();            // full-screen "Power off" page, drawn before the off deep sleep
+  void showPasskey(uint32_t code);// any task: a pairing wants this code on screen (passkeyTick draws it)
+  void passkeyTick();             // main loop: draws the code page when asked and it is not on screen yet
   void requestRedraw() { redrawPending = true; }
   bool busy() const { return rendering; }
   bool panelOk() const { return !panelMismatch; }   // false: the BUSY line says this is the other panel
@@ -25,6 +27,10 @@ private:
   void ensureInit();              // panel supply + SPI + driver init, once per wake
   void render();                  // full-screen redraw (blocks ~20 s while the panel refreshes)
   void drawStatusPage();          // shown until the configured source delivers a reading
+  void drawPasskey(uint32_t code);// full-screen pairing code
+  volatile bool passkeyAsked = false;
+  volatile uint32_t passkeyCode = 0;
+  bool codeShown = false;         // the last render carried the pairing code (status page, setup mode)
   void drawHeader();
   void drawValue();
   void drawTrendRow();
