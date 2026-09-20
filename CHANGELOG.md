@@ -2,6 +2,12 @@
 
 ## Unreleased — 1.1.0
 
+- App, SETTINGS: the automatic device name shows as the placeholder of the name field. The
+  time zone is a list of UTC offsets instead of a POSIX string: **this phone's zone** first and
+  selected by default (with its daylight-saving rules), then the fixed offsets; the device still
+  receives the POSIX form. It is asked only for the Wi-Fi sources, the Bluetooth sources take
+  time and offset from the phone. **Test Nightscout** also reads the site's profile and keeps its
+  time zone for the next save, shown in UTC terms.
 - App, setup link: when the discovered table lacks the setup service, the client drops Android's
   cached table for the device (hidden `refresh()`) and discovers once more. Android keeps a
   server table per bonded address in memory and serves it without going on the air; a table
@@ -18,7 +24,9 @@
   device answers nothing, and gives up after 30 s (the reconnect from the app failed while the
   bridge link was up). The sleep cycle already worked this way; the always-on mode keeps its
   link outside setup mode.
-- App, PROGRAM page: a picture above the install button shows the USB state (plug the board,
+- App, PROGRAM page: two cards, **NEW DEVICE** (panel tiles, black-and-white selected by default,
+  erase, USB) and **UPDATE** (how an update reaches the device, the Bluetooth link as a picture:
+  no link, connecting, linked, with the device's name and board). A picture above the install button shows the USB state (plug the board,
   board found, writing); the board on USB is asked over its console which panel it drives
   (`status` answers `board=` and `panel=`), the matching tile is selected and a contradicting
   choice asks for confirmation before anything is burned. A blank board says nothing and the

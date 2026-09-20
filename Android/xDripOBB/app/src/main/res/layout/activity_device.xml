@@ -17,6 +17,16 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" />
 
+        <!-- shown instead of the time zone field for the Bluetooth sources -->
+        <TextView
+            android:id="@+id/tvTzNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="13sp"
+            android:visibility="gone"
+            android:text="@string/tz_note_phone" />
+
         <Button
             android:id="@+id/btnSave"
             android:layout_width="match_parent"

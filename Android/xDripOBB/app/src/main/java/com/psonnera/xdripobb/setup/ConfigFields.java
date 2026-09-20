@@ -79,7 +79,7 @@ public final class ConfigFields {
             new Field(PAGE_ALARMS, "snoz", R.string.field_snoz, 'i', 0),
             new Field(PAGE_ALARMS, "snzh", R.string.field_snzh, 'i', 0),
             new Field(PAGE_DEVICE, "name", R.string.field_name, 's', 24),
-            new Field(PAGE_DEVICE, "tz", R.string.field_tz, 's', 48),
+            new Field(PAGE_DEVICE, "tz", R.string.field_tz, 'z', 48),   // a list of UTC offsets, POSIX on the wire
     };
 
     public static Field field(String key) {

@@ -22,7 +22,8 @@ import java.net.URL;
 public final class NightscoutTest {
     private NightscoutTest() {}
 
-    public interface Callback { void onResult(boolean ok, String message); }
+    /** timezone: the IANA name of the default profile (Europe/Rome), null when the site has none or the fetch failed */
+    public interface Callback { void onResult(boolean ok, String message, String timezone); }
 
     /** Trims, drops inner whitespace (a phone keyboard turns "." into " " easily), adds https://, strips the trailing slash. */
     public static String normalizeUrl(String raw) {
@@ -38,12 +39,45 @@ public final class NightscoutTest {
         return url.matches("(?i)^https?://[^/]+\\.[^/]+.*");
     }
 
+    /** GET <url>/api/v1/profile.json: the "timezone" of the default profile, or null. Same thread, best effort. */
+    private static String profileTimezone(String url, String token) {
+        HttpURLConnection c = null;
+        try {
+            String full = url + "/api/v1/profile.json" + (token != null && !token.isEmpty() ? "?token=" + token : "");
+            c = (HttpURLConnection) new URL(full).openConnection();
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(10000);
+            c.setRequestProperty("Accept", "application/json");
+            if (c.getResponseCode() != 200) return null;
+            BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream()));
+            StringBuilder body = new StringBuilder();
+            String line; while ((line = r.readLine()) != null && body.length() < 200000) body.append(line);
+            JSONArray arr = new JSONArray(body.toString());
+            if (arr.length() == 0) return null;
+            JSONObject p = arr.getJSONObject(0);
+            String tz = null;
+            JSONObject store = p.optJSONObject("store");
+            String def = p.optString("defaultProfile", "");
+            if (store != null) {
+                JSONObject prof = store.optJSONObject(def);
+                if (prof == null && store.length() > 0) prof = store.optJSONObject(store.keys().next());
+                if (prof != null) tz = prof.optString("timezone", null);
+            }
+            if (tz == null || tz.isEmpty()) tz = p.optString("timezone", null);
+            return tz == null || tz.isEmpty() ? null : tz;
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
     /** GET <url>/api/v1/entries.json?count=1[&token=] on a worker thread; the result comes on the main thread. */
     public static void run(Context ctx, String url, String token, Callback cb) {
         final Context app = ctx.getApplicationContext();
         Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
-            String msg; boolean ok = false;
+            String msg; boolean ok = false; String timezone = null;
             HttpURLConnection c = null;
             try {
                 String full = url + "/api/v1/entries.json?count=1" + (token != null && !token.isEmpty() ? "&token=" + token : "");
@@ -81,8 +115,9 @@ public final class NightscoutTest {
             } finally {
                 if (c != null) c.disconnect();
             }
-            final boolean okF = ok; final String msgF = msg;
-            main.post(() -> cb.onResult(okF, msgF));
+            if (ok) timezone = profileTimezone(url, token);
+            final boolean okF = ok; final String msgF = msg; final String tzF = timezone;
+            main.post(() -> cb.onResult(okF, msgF, tzF));
         }, "ns-test").start();
     }
 }

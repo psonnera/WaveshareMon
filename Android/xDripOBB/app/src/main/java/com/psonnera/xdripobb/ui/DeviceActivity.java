@@ -84,7 +84,17 @@ public class DeviceActivity extends AppCompatActivity implements DeviceSession.L
         if (cfg != null && cfg != filledFrom) {
             filledFrom = cfg;
             form.fill(cfg);
+            // The POSIX zone only matters for the Wi-Fi sources (clock from NTP); the Bluetooth
+            // sources take time and offset from the phone. The list opens on the phone's zone,
+            // which is what an empty stored zone becomes at the next save.
+            boolean wifi = ConfigFields.isWifi(cfg.optInt("src", 0));
+            form.setFieldVisible("tz", wifi);
+            b.tvTzNote.setVisibility(wifi ? android.view.View.GONE : android.view.View.VISIBLE);
         }
+        // an empty name field means the automatic name is in use; say which one
+        JSONObject inf = session.info();
+        if (inf != null && !inf.optString("name", "").isEmpty())
+            form.setHint("name", getString(R.string.hint_name_auto, inf.optString("name")));
         boolean ready = session.isReady();
         b.btnSave.setEnabled(ready);
         for (int i = 0; i < b.commands.getChildCount(); i++) b.commands.getChildAt(i).setEnabled(ready);

@@ -45,7 +45,10 @@
     <string name="date_dmy">Giorno/Mese</string>
     <string name="date_mdy">Mese/Giorno</string>
     <string name="title_flash">Installa firmware</string>
-    <string name="flash_panel_label">Schermo della scheda</string>
+    <string name="flash_panel_label">Scegli lo schermo della scheda:</string>
+    <string name="flash_section_new">NUOVO DISPOSITIVO</string>
+    <string name="flash_section_update">AGGIORNAMENTO</string>
+    <string name="flash_update_hint">Via USB: collega la scheda, impostazioni e associazione restano. Via Bluetooth: il dispositivo collegato scarica da solo il firmware via Wi-Fi; per una sorgente Bluetooth l’app chiede la password Wi-Fi.</string>
     <string name="flash_panel_color_short">S3 Colori</string>
     <string name="flash_panel_bw_short">S3/C6 B/N</string>
     <string name="flash_erase">Cancella impostazioni e associazione (prima installazione)</string>
@@ -174,7 +177,13 @@
     <string name="field_snzh">Posticipo alto (min)</string>
     <string name="field_name">Nome dispositivo</string>
     <string name="hint_name_auto">%1$s (nome automatico, lascia vuoto per mantenerlo)</string>
-    <string name="field_tz">Fuso orario POSIX</string>
+    <string name="field_tz">Fuso orario</string>
+    <string name="tz_this_phone">Questo telefono: %1$s (%2$s)</string>
+    <string name="tz_fixed">%1$s, fisso</string>
+    <string name="tz_device">Dispositivo: %1$s</string>
+    <string name="tz_dst_suffix">, ora legale</string>
+    <string name="tz_note_phone">Fuso orario: non necessario, il telefono regola l’orologio per questa sorgente.</string>
+    <string name="ns_tz_found">Fuso orario del profilo: %1$s, %2$s (salvato con le impostazioni, modificabile in IMPOSTAZIONI)</string>
 
     <!-- ===== comandi del dispositivo ===== -->
     <string name="cmd_refresh">Aggiorna schermo</string>

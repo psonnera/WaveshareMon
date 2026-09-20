@@ -69,6 +69,15 @@ public class ConfigForm {
                     input = sp;
                     break;
                 }
+                case 'z': {
+                    // the time zone: the phone's zone first (the default), then fixed UTC offsets;
+                    // the device gets the POSIX string behind the entry (see TzChoices)
+                    Spinner sp = new Spinner(ctx);
+                    java.util.List<com.psonnera.xdripobb.wifi.TzChoices.Entry> entries = com.psonnera.xdripobb.wifi.TzChoices.base(ctx);
+                    sp.setAdapter(new ArrayAdapter<>(ctx, android.R.layout.simple_spinner_dropdown_item, entries));
+                    input = sp;
+                    break;
+                }
                 case 'b': {
                     CheckBox cb = new CheckBox(ctx);
                     cb.setText(f.label);
@@ -143,7 +152,7 @@ public class ConfigForm {
     /** the rows of a 2 x 2 table, by each of its keys, so a dependent rule can hide the whole table */
     private final Map<String, java.util.List<View>> gridRows = new LinkedHashMap<>();
 
-    private void setFieldVisible(String key, boolean show) {
+    public void setFieldVisible(String key, boolean show) {
         int vis = show ? View.VISIBLE : View.GONE;
         java.util.List<View> rows = gridRows.get(key);
         if (rows != null) { for (View r : rows) r.setVisibility(vis); return; }
@@ -241,6 +250,20 @@ public class ConfigForm {
         v.setVisibility(input.getVisibility());
     }
 
+    /** the device's zone: one of the list entries, or an extra "Device: ..." entry; empty = the phone's zone */
+    @SuppressWarnings("unchecked")
+    private void selectZone(Spinner sp, String posix) {
+        ArrayAdapter<com.psonnera.xdripobb.wifi.TzChoices.Entry> ad = (ArrayAdapter<com.psonnera.xdripobb.wifi.TzChoices.Entry>) sp.getAdapter();
+        java.util.List<com.psonnera.xdripobb.wifi.TzChoices.Entry> entries = new java.util.ArrayList<>();
+        for (int i = 0; i < ad.getCount(); i++) entries.add(ad.getItem(i));
+        // drop a previous "Device: ..." entry
+        for (int i = entries.size() - 1; i >= 0; i--) if (entries.get(i).label.startsWith(ctx.getString(R.string.tz_device, "").trim())) entries.remove(i);
+        int idx = posix == null || posix.trim().isEmpty() ? 0 : com.psonnera.xdripobb.wifi.TzChoices.indexOf(entries, posix);
+        if (idx < 0) { entries.add(1, com.psonnera.xdripobb.wifi.TzChoices.device(ctx, posix)); idx = 1; }
+        sp.setAdapter(new ArrayAdapter<>(ctx, android.R.layout.simple_spinner_dropdown_item, entries));
+        sp.setSelection(idx);
+    }
+
     public String getText(String key) {
         View v = inputs.get(key);
         return v instanceof EditText ? ((EditText) v).getText().toString() : "";
@@ -289,6 +312,7 @@ public class ConfigForm {
             try {
                 switch (f.type) {
                     case 'c': ((Spinner) v).setSelection(j.getInt(f.key)); break;
+                    case 'z': selectZone((Spinner) v, j.getString(f.key)); break;
                     case 'b': case 'w': ((CompoundButton) v).setChecked(j.getInt(f.key) != 0); break;
                     case 'g': {
                         int mgdl = j.getInt(f.key);
@@ -322,6 +346,12 @@ public class ConfigForm {
                 Object val;
                 switch (f.type) {
                     case 'c': val = ((Spinner) v).getSelectedItemPosition(); break;
+                    case 'z': {
+                        Object e = ((Spinner) v).getSelectedItem();
+                        if (e == null) continue;
+                        val = ((com.psonnera.xdripobb.wifi.TzChoices.Entry) e).posix;
+                        break;
+                    }
                     case 'b': case 'w': val = ((CompoundButton) v).isChecked() ? 1 : 0; break;
                     case 'g': {
                         double d = parse(((EditText) v).getText().toString(), Double.NaN);

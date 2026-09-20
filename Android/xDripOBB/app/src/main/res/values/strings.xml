@@ -48,7 +48,10 @@
     <string name="date_dmy">Day/Month</string>
     <string name="date_mdy">Month/Day</string>
     <string name="title_flash">Install firmware</string>
-    <string name="flash_panel_label">Program a new device (select)</string>
+    <string name="flash_panel_label">Choose the panel of the board:</string>
+    <string name="flash_section_new">NEW DEVICE</string>
+    <string name="flash_section_update">UPDATE</string>
+    <string name="flash_update_hint">Over USB: plug the board, settings and pairing are kept. Over Bluetooth: the linked device downloads the firmware itself over Wi-Fi; a device with a Bluetooth source is asked for the Wi-Fi password.</string>
     <string name="flash_panel_color_short">S3 Color</string>
     <string name="flash_panel_bw_short">S3/C6 B&amp;W</string>
     <string name="flash_erase">Erase all (settings and pairing)</string>
@@ -184,7 +187,13 @@
     <string name="field_snzh">Snooze high (min)</string>
     <string name="field_name">Device name</string>
     <string name="hint_name_auto">%1$s (automatic name, leave empty to keep it)</string>
-    <string name="field_tz">POSIX time zone</string>
+    <string name="field_tz">Time zone</string>
+    <string name="tz_this_phone">This phone: %1$s (%2$s)</string>
+    <string name="tz_fixed">%1$s, fixed</string>
+    <string name="tz_device">Device: %1$s</string>
+    <string name="tz_dst_suffix">, DST</string>
+    <string name="tz_note_phone">Time zone: not needed, the phone sets the clock for this source.</string>
+    <string name="ns_tz_found">Time zone of the profile: %1$s, %2$s (saved with the settings, editable in SETTINGS)</string>
 
     <!-- ===== device commands ===== -->
     <string name="cmd_refresh">Refresh display</string>

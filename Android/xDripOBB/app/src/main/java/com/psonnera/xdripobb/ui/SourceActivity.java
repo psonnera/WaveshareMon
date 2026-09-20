@@ -260,8 +260,11 @@ public class SourceActivity extends AppCompatActivity implements DeviceSession.L
         if (!NightscoutTest.looksValid(url)) { form.setError("url", getString(R.string.ns_url_error)); return; }
         btnTestNs.setEnabled(false);
         b.tvStatus.setText(getString(R.string.ns_testing, url));
-        NightscoutTest.run(this, url, form.getText("token"), (ok, msg) -> {
+        NightscoutTest.run(this, url, form.getText("token"), (ok, msg, timezone) -> {
             btnTestNs.setEnabled(true);
+            // the profile's zone, as the POSIX string the device wants: written with the next save
+            String posix = com.psonnera.xdripobb.wifi.PosixTz.fromIana(timezone);
+            if (posix != null) { pendingTz = posix; msg = msg + "\n" + getString(R.string.ns_tz_found, timezone, com.psonnera.xdripobb.wifi.TzChoices.friendly(this, posix)); }
             b.tvStatus.setText(msg);
             new MaterialAlertDialogBuilder(this).setTitle(ok ? R.string.ns_answers : R.string.ns_failed)
                     .setMessage(msg).setPositiveButton(android.R.string.ok, null).show();
@@ -288,10 +291,16 @@ public class SourceActivity extends AppCompatActivity implements DeviceSession.L
         return true;
     }
 
+    private String pendingTz = null;   // from the Nightscout profile (Test Nightscout), saved with the settings
+
     private void save() {
         if (!validate()) return;
         JSONObject changed = form.changed();
+        if (pendingTz != null && form.selectedSource() == ConfigFields.SRC_NIGHTSCOUT) {
+            try { if (changed == null) changed = new JSONObject(); changed.put("tz", pendingTz); } catch (org.json.JSONException ignored) {}
+        }
         if (changed == null) { Toast.makeText(this, R.string.nothing_changed, Toast.LENGTH_SHORT).show(); return; }
         session.writeConfig(changed);
+        pendingTz = null;
     }
 }

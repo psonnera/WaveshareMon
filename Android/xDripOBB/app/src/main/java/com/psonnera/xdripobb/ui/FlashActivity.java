@@ -50,7 +50,7 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
     private static final int NVS_OFFSET = 0x9000, NVS_SIZE = 0x5000;   // settings + Bluetooth bonds
 
     private ActivityFlashBinding b;
-    private boolean bwSelected = false;   // Color is the default, as before
+    private boolean bwSelected = true;    // black-and-white is the default (the more common board)
     private DeviceSession session;
     private boolean updateMode = false;   // UPDATE DEVICE over USB: same images, settings and pairing kept
     private String tileChosenFor = "";    // device address whose board already picked the tile
@@ -101,7 +101,7 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
         b.btnReconnect.setOnClickListener(v -> Reconnect.start(this, session));
         b.cardBw.setOnClickListener(v -> selectPanel(true));
         b.cardColor.setOnClickListener(v -> selectPanel(false));
-        selectPanel(false);
+        selectPanel(true);
         IntentFilter f = new IntentFilter();
         f.addAction(ACTION_USB_PERMISSION);
         f.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
@@ -216,6 +216,9 @@ public class FlashActivity extends AppCompatActivity implements DeviceSession.Li
      */
     private void refreshLink() {
         org.json.JSONObject info = session.info();
+        b.ivLink.setImageResource(session.isConnected() && info != null ? R.drawable.link_connected
+                : session.isConnected() || session.isReconnecting() ? R.drawable.link_authenticating
+                : R.drawable.link_disconnected);
         if (session.isConnected() && info != null) {
             String board = info.optString("board", "");
             boolean color = board.endsWith("G");

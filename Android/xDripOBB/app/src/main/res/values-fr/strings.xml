@@ -46,7 +46,10 @@
     <string name="date_dmy">Jour/Mois</string>
     <string name="date_mdy">Mois/Jour</string>
     <string name="title_flash">Installer le firmware</string>
-    <string name="flash_panel_label">Écran de la carte</string>
+    <string name="flash_panel_label">Choisissez l\'écran de la carte :</string>
+    <string name="flash_section_new">NOUVEL APPAREIL</string>
+    <string name="flash_section_update">MISE À JOUR</string>
+    <string name="flash_update_hint">Par USB : branchez la carte, réglages et appairage sont conservés. Par Bluetooth : l’appareil relié télécharge lui-même le firmware par Wi-Fi ; pour une source Bluetooth, l’app demande le mot de passe Wi-Fi.</string>
     <string name="flash_panel_color_short">S3 Couleur</string>
     <string name="flash_panel_bw_short">S3/C6 N&amp;B</string>
     <string name="flash_erase">Effacer les réglages et l\'appairage (première installation)</string>
@@ -175,7 +178,13 @@
     <string name="field_snzh">Rappel haut (min)</string>
     <string name="field_name">Nom de l\'appareil</string>
     <string name="hint_name_auto">%1$s (nom automatique, laissez vide pour le garder)</string>
-    <string name="field_tz">Fuseau horaire POSIX</string>
+    <string name="field_tz">Fuseau horaire</string>
+    <string name="tz_this_phone">Ce téléphone : %1$s (%2$s)</string>
+    <string name="tz_fixed">%1$s, fixe</string>
+    <string name="tz_device">Appareil : %1$s</string>
+    <string name="tz_dst_suffix">, heure d’été</string>
+    <string name="tz_note_phone">Fuseau horaire : inutile, le téléphone règle l’horloge pour cette source.</string>
+    <string name="ns_tz_found">Fuseau horaire du profil : %1$s, %2$s (enregistré avec les réglages, modifiable dans RÉGLAGES)</string>
 
     <!-- ===== commandes de l'appareil ===== -->
     <string name="cmd_refresh">Rafraîchir l\'écran</string>
