@@ -44,7 +44,7 @@
 
 extern const unsigned char bat0_icon16x16[], bat1_icon16x16[], bat2_icon16x16[],
                            bat3_icon16x16[], bat4_icon16x16[], plug_icon16x16[],
-                           bluetooth_icon16x16[], wifi2_icon16x16[], clock_icon16x16[],
+                           bluetooth_icon16x16[], wifi2_icon16x16[],
                            warning_icon16x16[];
 
 EpdUi ui;
@@ -162,13 +162,33 @@ static void thresholdLine(int x0, int y, int w, bool alarm) {
 
 // header icons: red for an alert on the colour panel; the black-and-white panel keeps the
 // top line black on white, as the user asked: no inverted icon boxes there
+// The 16x16 art is drawn at 2x in its 32 px cell, scaled down when its inked rows
+// would not fit the header (the Bluetooth rune is 15 rows high), and centred
+// vertically on its ink rather than on the art's box.
 static void drawHeaderIcon(int16_t x, const unsigned char *bitmap, bool alert) {
 #if BOARD_PANEL_COLOR
-  drawIcon2x(x, 0, bitmap, alert ? GxEPD_RED : GxEPD_BLACK);
+  uint16_t color = alert ? GxEPD_RED : GxEPD_BLACK;
 #else
   (void)alert;
-  drawIcon2x(x, 0, bitmap, GxEPD_BLACK);
+  uint16_t color = GxEPD_BLACK;
 #endif
+  int top = 16, bot = -1;
+  for (int row = 0; row < 16; row++)
+    if (bitmap[row * 2] | bitmap[row * 2 + 1]) { if (top > row) top = row; bot = row; }
+  if (bot < 0) return;
+  int rows = bot - top + 1;
+  const int maxH = HDR_H - 2;
+  int s10 = rows * 20 <= maxH * 10 ? 20 : maxH * 10 / rows;   // scale in tenths, 2x at most
+  int y0 = (HDR_H - rows * s10 / 10) / 2;
+  int x0 = x + (32 - 16 * s10 / 10) / 2;
+  for (int row = top; row <= bot; row++) {
+    int ya = y0 + (row - top) * s10 / 10, yb = y0 + (row - top + 1) * s10 / 10;
+    for (int col = 0; col < 16; col++)
+      if (bitmap[row * 2 + col / 8] & (0x80 >> (col % 8))) {
+        int xa = x0 + col * s10 / 10, xb = x0 + (col + 1) * s10 / 10;
+        display.fillRect(xa, ya, xb - xa, yb - ya, color);
+      }
+  }
 }
 static void drawIcon2x(int16_t x, int16_t y, const unsigned char *bitmap, uint16_t color) {
   for (int row = 0; row < 16; row++)
@@ -214,15 +234,15 @@ static int valueLevel() {
 // ---- screen parts ---------------------------------------------------------------
 
 void EpdUi::drawHeader() {
-  // from the right: battery icon, battery %, link icon, snooze clock; reading time
-  // on the left. The icons are the 16x16 art at 2x; the link / clock art has 4 blank
-  // columns on each side (8 px at 2x), which the fit test counts as spacing.
+  // from the right: battery icon, battery %, link icon; reading time on the left.
+  // The icons are the 16x16 art at 2x; the link art has 4 blank columns on each
+  // side (8 px at 2x), which the fit test counts as spacing. A snooze shows in
+  // the bottom bar, never here, so it hides nothing.
   int pct = battery.percent();
   char pt[8] = "";
   if (pct >= 0) snprintf(pt, sizeof(pt), "%d%%", pct);
   char t[12] = "";
   if (gs.hasData && gs.readingUtc) timeService.formatTime(gs.readingUtc, t, sizeof(t));
-  bool snoozed = alarms.isSnoozed();
 
   // the percentage only when there is room: 11 pt, else 9 pt, else dropped, keeping
   // the time at 18 pt as long as possible (a 12 h time is wider and may drop to 12 pt).
@@ -239,7 +259,7 @@ void EpdUi::drawHeader() {
     if (t[0]) { textSize(t, c[0], 1, w, h); ctw = w; cth = h; }
     if (pt[0] && c[1]) { textSize(pt, c[1], 1, w, h); cpw = w; cph = h; }
     int lx = W - 32 - (cpw ? cpw + 6 : 0) - 32;          // link icon cell
-    int leftmost = lx - (snoozed ? 32 : 0) + 8;           // first visible icon column
+    int leftmost = lx + 8;                                // first visible icon column
     tf = c[0]; pf = cpw ? c[1] : nullptr; tw = ctw; th = cth; pw = cpw; ph = cph; linkX = lx;
     if (2 + ctw + 4 <= leftmost) break;
   }
@@ -267,7 +287,6 @@ void EpdUi::drawHeader() {
   } else {
     drawHeaderIcon(x, wifi2_icon16x16, !wifiConnected());
   }
-  if (snoozed) drawHeaderIcon(x - 32, clock_icon16x16, true);
 
   if (t[0]) drawText(t, 2, (HDR_H - th) / 2, tf, 1, GxEPD_BLACK);
 }
@@ -440,6 +459,8 @@ void EpdUi::drawBottomBar(bool infoShown) {
   char txt[96];
   if (setupServerAdvertising())
     snprintf(txt, sizeof(txt), "Setup: %s", cfg.name());
+  else if (alarms.isSnoozed())
+    snprintf(txt, sizeof(txt), "Alarms snoozed: %d min", alarms.snoozeRemainingMin());
   else if (!cycleAwake() && cycleStatusText()[0])
     strlcpy(txt, cycleStatusText(), sizeof(txt));
   else if (!cycleAwake() && gs.infoLine[0] && !infoShown)
@@ -504,6 +525,9 @@ void EpdUi::ensureInit() {
   SPI.begin(PIN_EPD_SCK, -1, PIN_EPD_MOSI, PIN_EPD_CS);
   display.init(0, true, 2, false);
   display.setRotation(0);
+  // wrapping would also make getTextBounds() report a multi-line box: the fit
+  // tests would pass text that then runs out of its bar
+  display.setTextWrap(false);
   inited = true;
 }
 

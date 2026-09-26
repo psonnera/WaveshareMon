@@ -2,6 +2,12 @@
 
 ## Unreleased — 1.1.0
 
+- Screen: the snooze no longer has a clock icon in the top line, where it pushed the battery
+  percentage out; the bottom bar shows it (`zz 25'` beside the alarm, `Alarms snoozed: 25 min`
+  once the alarm has cleared). The alarm text no longer runs out of its bar: text wrapping was
+  on, so a label wider than the screen measured as two lines, passed the fit test at 12 pt and
+  was drawn half above the bar, half below the screen. Header icons fit the 28 px line and are
+  centred on their ink (the Bluetooth rune, 15 rows at 2x, overlapped the value band).
 - App, SETTINGS: the page says when the setup link is down and offers **Reconnect**, like the
   other pages (its commands and Save need the link). The automatic device name shows as the placeholder of the name field. The
   time zone is a list of UTC offsets instead of a POSIX string: **this phone's zone** first and
