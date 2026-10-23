@@ -356,6 +356,19 @@ public class OpenBroadcastService extends Service {
 
     public List<BluetoothDevice> getConnectedDevices() { synchronized (connected) { return new ArrayList<>(connected); } }
 
+    /**
+     * Connected devices that actually receive readings: our display (or its Mi Band alias) and
+     * anything subscribed to Glucose. The GATT server callback also reports every other LE link
+     * of the phone (insulin pump, watch...), which must not be listed as a receiver.
+     */
+    public List<BluetoothDevice> getReceiverDevices() {
+        List<BluetoothDevice> out = new ArrayList<>();
+        List<BluetoothDevice> glucoseSubs = subscribers(ObbProtocol.GLUCOSE_UUID);
+        for (BluetoothDevice d : getConnectedDevices())
+            if (isOurDevice(d.getAddress()) || glucoseSubs.contains(d)) out.add(d);
+        return out;
+    }
+
     public List<BluetoothDevice> getBondedDevices() {
         List<BluetoothDevice> out = new ArrayList<>();
         if (adapter == null || !hasConnectPermission()) return out;

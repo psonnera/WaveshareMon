@@ -2,6 +2,9 @@
 
 ## Unreleased — 1.1.0
 
+- App, home and connection pages: "Sends readings to" lists only the display and devices
+  subscribed to Glucose. Android reports every LE link of the phone to the GATT server callback,
+  so a bonded insulin pump (YpsoPump) or watch showed up as a receiver.
 - Screen: the snooze no longer has a clock icon in the top line, where it pushed the battery
   percentage out; the bottom bar shows it (`zz 25'` beside the alarm, `Alarms snoozed: 25 min`
   once the alarm has cleared). The alarm text no longer runs out of its bar: text wrapping was

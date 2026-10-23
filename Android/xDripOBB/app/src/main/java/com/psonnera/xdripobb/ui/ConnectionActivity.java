@@ -130,7 +130,7 @@ public class ConnectionActivity extends AppCompatActivity implements DeviceSessi
     private void renderBoxes() {
         boolean setupUp = session.isConnected();
         JSONObject info = session.info();
-        List<BluetoothDevice> viaBridge = bridge != null ? bridge.getConnectedDevices() : new ArrayList<>();
+        List<BluetoothDevice> viaBridge = bridge != null ? bridge.getReceiverDevices() : new ArrayList<>();
         // the setup device also on the bridge: one box with an extra line
         boolean same = false;
         List<BluetoothDevice> others = new ArrayList<>();

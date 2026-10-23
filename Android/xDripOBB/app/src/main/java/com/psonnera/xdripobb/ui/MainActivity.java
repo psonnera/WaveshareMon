@@ -157,7 +157,7 @@ public class MainActivity extends AppCompatActivity implements DeviceSession.Lis
                 b.tvDelta.setText(getString(R.string.home_delta_age, d, unit, age));
             }
         }
-        List<BluetoothDevice> devs = bridge != null ? bridge.getConnectedDevices() : new ArrayList<>();
+        List<BluetoothDevice> devs = bridge != null ? bridge.getReceiverDevices() : new ArrayList<>();
         if (!running) {
             b.tvDevices.setText(R.string.home_bridge_off_hint);
         } else if (devs.isEmpty()) {
